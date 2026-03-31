@@ -1,7 +1,12 @@
+using API.Application.Auth;
+using API.Application.Services;
+using API.Core.Interfaces;
 using API.Infrastructure.Data;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,9 +47,37 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 // builder.Services.AddHangfireServer();
 
 // ---------------------------------------------------------------------------
-// Azure AD Authentication (uncomment when Azure AD is configured)
+// Authentication & Authorization
 // ---------------------------------------------------------------------------
-// builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAuthorizationHandler, ConnectionAccessHandler>();
+
+// Azure AD Authentication — enable when AzureAd config section is present
+var azureAdSection = builder.Configuration.GetSection("AzureAd");
+if (azureAdSection.Exists())
+{
+    builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
+}
+else
+{
+    // Development fallback — use JWT bearer with development settings
+    builder.Services.AddAuthentication("Bearer")
+        .AddJwtBearer("Bearer", options =>
+        {
+            options.Authority = builder.Configuration["Auth:Authority"] ?? "https://login.microsoftonline.com/common";
+            options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+            {
+                ValidateAudience = false,
+                ValidateIssuer = false // Only for development!
+            };
+        });
+}
+
+builder.Services.AddAuthorization(options =>
+{
+    AuthorizationPolicies.ConfigurePolicies(options);
+});
 
 // ---------------------------------------------------------------------------
 // CORS
@@ -82,7 +115,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
-// app.UseAuthentication();   // Enable when Azure AD is configured
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
