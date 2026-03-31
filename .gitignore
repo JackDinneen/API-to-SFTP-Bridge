@@ -1,0 +1,37 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+[Dd]ebug/
+[Rr]elease/
+coverage/
+
+# Node/Vue
+node_modules/
+dist/
+.output/
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code
+.claude/settings.local.json
+.claude/worktrees/
+
+# Environment & Secrets
+.env
+.env.*
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+secrets/
+*.pfx
+*.key

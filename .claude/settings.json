@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./appsettings.Development.json)",
+      "Read(./appsettings.Production.json)",
+      "Read(./appsettings.Staging.json)",
+      "Read(./**/appsettings.*.json)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./src/ClientApp/.env)",
+      "Read(./src/ClientApp/.env.*)",
+      "Read(./secrets/**)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.key)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "if": "Bash",
+        "hooks": [{ "type": "command", "command": "echo '$CLAUDE_TOOL_INPUT' | grep -iE '(appsettings\\.Development|appsettings\\.Production|appsettings\\.Staging|\\.env|secrets/)' && echo 'Blocked: sensitive file access' && exit 2 || exit 0" }]
+      },
+      {
+        "if": "Edit(src/API/Infrastructure/Migrations/*)",
+        "hooks": [{ "type": "command", "command": "echo 'WARNING: Only edit migrations not yet applied to any environment' && exit 1" }]
+      }
+    ],
+    "Notification": [{
+      "hooks": [{ "type": "command", "command": "osascript -e 'display notification \"Claude needs attention\" with title \"Claude Code\"'" }]
+    }]
+  }
+}
