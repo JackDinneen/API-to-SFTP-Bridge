@@ -28,17 +28,17 @@ describe('DashboardView', () => {
     setActivePinia(createPinia())
   })
 
-  it('renders summary cards', () => {
+  it('renders domain-relevant summary tiles', () => {
     const router = createTestRouter()
     const wrapper = mount(DashboardView, {
       global: {
         plugins: [createPinia(), router],
       },
     })
-    expect(wrapper.text()).toContain('Active')
-    expect(wrapper.text()).toContain('Paused')
-    expect(wrapper.text()).toContain('Error')
-    expect(wrapper.text()).toContain('Total')
+    expect(wrapper.text()).toContain('Active Connections')
+    expect(wrapper.text()).toContain('Syncs This Month')
+    expect(wrapper.text()).toContain('Records Delivered')
+    expect(wrapper.text()).toContain('Errors')
   })
 
   it('renders search toolbar', () => {
@@ -53,24 +53,26 @@ describe('DashboardView', () => {
     expect(wrapper.text()).toContain('Export')
   })
 
-  it('shows empty table message when no connections', () => {
+  it('shows empty state with create button when no connections', () => {
     const router = createTestRouter()
     const wrapper = mount(DashboardView, {
       global: {
         plugins: [createPinia(), router],
       },
     })
-    expect(wrapper.text()).toContain('No connections yet')
+    expect(wrapper.text()).toContain('No connections configured')
+    expect(wrapper.text()).toContain('Create Connection')
   })
 
-  it('renders summary card counts as 0 when empty', () => {
+  it('renders info tooltips on summary tiles', () => {
     const router = createTestRouter()
     const wrapper = mount(DashboardView, {
       global: {
         plugins: [createPinia(), router],
       },
     })
-    const counts = wrapper.findAll('.text-2xl')
-    expect(counts.length).toBeGreaterThanOrEqual(4)
+    // Each tile has an info button
+    const infoButtons = wrapper.findAll('button[aria-label="More info"]')
+    expect(infoButtons.length).toBe(4)
   })
 })
