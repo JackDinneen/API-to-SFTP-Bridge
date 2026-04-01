@@ -24,11 +24,11 @@ public class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, "dev-user-001"),
+            new Claim(ClaimTypes.NameIdentifier, "00000000-0000-0000-0000-000000000001"),
             new Claim(ClaimTypes.Email, "admin@obibridge.dev"),
             new Claim(ClaimTypes.Name, "Dev Admin"),
             new Claim(ClaimTypes.Role, "Admin"),
-            new Claim("oid", "dev-user-001"),
+            new Claim("oid", "00000000-0000-0000-0000-000000000001"),
         };
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);

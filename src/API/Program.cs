@@ -193,6 +193,28 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 // ---------------------------------------------------------------------------
+// Seed dev user profile (development only)
+// ---------------------------------------------------------------------------
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var devUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+    if (!db.UserProfiles.Any(u => u.Id == devUserId))
+    {
+        db.UserProfiles.Add(new API.Core.Entities.UserProfile
+        {
+            Id = devUserId,
+            AzureAdId = "00000000-0000-0000-0000-000000000001",
+            Email = "admin@obibridge.dev",
+            DisplayName = "Dev Admin",
+            Role = API.Core.Models.UserRole.Admin
+        });
+        db.SaveChanges();
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Middleware pipeline
 // ---------------------------------------------------------------------------
 
