@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { AuthType } from '@/types'
+import type { Connection, ApiResponse } from '@/types'
+import { useApi } from '@/composables/useApi'
 
 export interface ApiConfig {
   baseUrl: string
@@ -138,8 +140,19 @@ export const OBI_COLUMNS = [
   'Value',
 ] as const
 
+const TRANSFORM_TYPE_MAP: Record<string, string> = {
+  Direct: 'DirectMapping',
+  'Value Mapping': 'ValueMapping',
+  'Unit Conversion': 'UnitConversion',
+  'Date Parse': 'DateParse',
+  'Static Value': 'StaticValue',
+  Concatenation: 'Concatenation',
+  Split: 'Split',
+}
+
 export const useWizardStore = defineStore('wizard', () => {
   const currentStep = ref(1)
+  const createdConnectionId = ref<string | null>(null)
   const wizardData = ref<WizardData>(createDefaultWizardData())
   const stepValid = ref<Record<number, boolean>>({
     1: false,
@@ -181,6 +194,7 @@ export const useWizardStore = defineStore('wizard', () => {
 
   function resetWizard() {
     currentStep.value = 1
+    createdConnectionId.value = null
     wizardData.value = createDefaultWizardData()
     stepValid.value = {
       1: false,
@@ -192,13 +206,86 @@ export const useWizardStore = defineStore('wizard', () => {
     }
   }
 
-  async function submitWizard(): Promise<boolean> {
-    // TODO: Replace with actual API call to create connection
-    return true
+  async function submitWizard(activate = true): Promise<boolean> {
+    const api = useApi()
+    const d = wizardData.value
+    const o = d.outputConfig
+    const a = d.apiConfig
+
+    const mappings = d.mappings.map((m, index) => ({
+      sourcePath: m.sourcePath,
+      targetColumn: m.targetColumn,
+      transformType: TRANSFORM_TYPE_MAP[m.transformType] ?? 'DirectMapping',
+      transformConfig:
+        Object.keys(m.transformConfig).length > 0
+          ? JSON.stringify(m.transformConfig)
+          : null,
+      sortOrder: index,
+    }))
+
+    const credentials: Record<string, unknown> = {
+      sftpUsername: o.sftpUsername,
+      sftpPassword: o.sftpPassword,
+    }
+
+    switch (a.authType) {
+      case AuthType.ApiKey:
+        credentials.apiKey = a.apiKey
+        credentials.apiKeyHeader = a.apiKeyHeader
+        break
+      case AuthType.BasicAuth:
+        credentials.basicUsername = a.basicUsername
+        credentials.basicPassword = a.basicPassword
+        break
+      case AuthType.OAuth2ClientCredentials:
+        credentials.oAuthClientId = a.oauthClientId
+        credentials.oAuthClientSecret = a.oauthClientSecret
+        credentials.oAuthTokenUrl = a.oauthTokenUrl
+        break
+      case AuthType.CustomHeaders:
+        credentials.customHeaders = a.customHeaders
+          .filter((h) => h.key.trim())
+          .map((h) => ({ key: h.key, value: h.value }))
+        break
+    }
+
+    const payload = {
+      name: `${o.clientName} - ${o.platformName}`,
+      baseUrl: a.baseUrl,
+      authType: a.authType,
+      scheduleCron: o.cronExpression,
+      clientName: o.clientName,
+      platformName: o.platformName,
+      sftpHost: o.sftpHost,
+      sftpPort: o.sftpPort,
+      sftpPath: o.sftpPath,
+      reportingLagDays: o.reportingLagDays,
+      endpointPath: d.endpointConfig.path,
+      paginationStrategy:
+        d.endpointConfig.paginationStrategy !== 'none'
+          ? d.endpointConfig.paginationStrategy
+          : null,
+      activate,
+      mappings,
+      credentials,
+    }
+
+    const result = await api.postAsync<Connection>('/connections', payload)
+    if (result.success && result.data) {
+      createdConnectionId.value = result.data.id
+      // Clear sensitive credential data from reactive store
+      d.apiConfig.apiKey = ''
+      d.apiConfig.basicPassword = ''
+      d.apiConfig.oauthClientSecret = ''
+      d.outputConfig.sftpPassword = ''
+      return true
+    }
+    return false
   }
 
   return {
     currentStep,
+    createdConnectionId,
     wizardData,
     stepValid,
     isFirstStep,

@@ -80,7 +80,20 @@ public class ConnectionsControllerTests
             BaseUrl = "https://api.example.com",
             AuthType = AuthType.ApiKey,
             ClientName = "testclient",
-            PlatformName = "TestPlatform"
+            PlatformName = "TestPlatform",
+            Mappings = new List<CreateMappingDto>
+            {
+                new()
+                {
+                    SourcePath = "data.assetId",
+                    TargetColumn = "Asset ID",
+                    TransformType = "DirectMapping"
+                }
+            },
+            Credentials = new CreateCredentialDto
+            {
+                ApiKey = "test-key-123"
+            }
         };
 
         try

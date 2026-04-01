@@ -1,16 +1,38 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useWizardStore, OBI_COLUMNS, type TestResult } from '@/stores/wizard'
-import { AuthType } from '@/types'
+import { useWizardStore, OBI_COLUMNS } from '@/stores/wizard'
+import { AuthType, SyncRunStatus } from '@/types'
+import type { ApiResponse, SyncRun } from '@/types'
+import { useApi } from '@/composables/useApi'
 import { useRouter } from 'vue-router'
+
+interface SyncRunRecordDto {
+  assetId: string | null
+  assetName: string | null
+  submeterCode: string | null
+  utilityType: string | null
+  year: number | null
+  month: number | null
+  value: number | null
+  isValid: boolean
+  validationMessage: string | null
+}
+
+interface SyncRunWithRecords extends SyncRun {
+  records?: SyncRunRecordDto[]
+}
 
 const wizard = useWizardStore()
 const router = useRouter()
+const api = useApi()
 
 const testStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const testError = ref('')
 const activateStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
-const testResult = ref<TestResult | null>(wizard.wizardData.testResult)
+const csvPreview = ref<string[][]>([])
+const validationResults = ref<
+  { row: number; status: 'pass' | 'warning' | 'error'; message: string }[]
+>([])
 
 const authLabel = computed(() => {
   switch (wizard.wizardData.apiConfig.authType) {
@@ -68,58 +90,145 @@ const summaryItems = computed(() => [
   },
 ])
 
+async function pollSyncResult(
+  connectionId: string,
+  maxAttempts = 15,
+): Promise<SyncRunWithRecords | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    const result = await api.getAsync<SyncRunWithRecords>(
+      `/sync/${connectionId}/latest?includeRecords=true`,
+    )
+    if (result.success && result.data) {
+      if (
+        result.data.status === SyncRunStatus.Succeeded ||
+        result.data.status === SyncRunStatus.Failed
+      ) {
+        return result.data
+      }
+    }
+  }
+  return null
+}
+
 async function runTestSync() {
   testStatus.value = 'loading'
   testError.value = ''
+  csvPreview.value = []
+  validationResults.value = []
+
   try {
-    // TODO: Replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    testResult.value = {
-      success: true,
-      csvPreview: [
-        [...OBI_COLUMNS],
-        [
-          'BLD-100',
-          'Main Office',
-          'MTR-001',
-          'electricity',
-          '2025',
-          '1',
-          '15230.5',
-        ],
-        [
-          'BLD-100',
-          'Main Office',
-          'MTR-001',
-          'electricity',
-          '2025',
-          '2',
-          '14890.2',
-        ],
-        ['BLD-200', 'Warehouse', 'MTR-005', 'gas', '2025', '1', '3200.0'],
-      ],
-      validationResults: [
-        { row: 1, status: 'pass', message: 'All fields valid' },
-        { row: 2, status: 'pass', message: 'All fields valid' },
-        { row: 3, status: 'pass', message: 'All fields valid' },
-      ],
+    // Step 1: Create connection as Paused
+    const created = await wizard.submitWizard(false)
+    if (!created || !wizard.createdConnectionId) {
+      testStatus.value = 'error'
+      testError.value =
+        'Failed to create connection. Check your configuration and try again.'
+      return
     }
-    wizard.setStepData('testResult', testResult.value)
+
+    const connectionId = wizard.createdConnectionId
+
+    // Step 2: Trigger a sync
+    const syncResult = await api.postAsync<unknown>(
+      `/connections/${connectionId}/sync`,
+    )
+    if (!syncResult.success) {
+      testStatus.value = 'error'
+      testError.value = syncResult.message ?? 'Failed to trigger test sync.'
+      return
+    }
+
+    // Step 3: Poll for result
+    const syncRun = await pollSyncResult(connectionId)
+    if (!syncRun) {
+      testStatus.value = 'error'
+      testError.value = 'Test sync timed out. Please try again.'
+      return
+    }
+
+    if (syncRun.status === SyncRunStatus.Failed) {
+      testStatus.value = 'error'
+      testError.value = syncRun.errorMessage ?? 'Test sync failed.'
+      return
+    }
+
+    // Step 4: Build CSV preview from records
+    if (syncRun.records && syncRun.records.length > 0) {
+      const headers = [...OBI_COLUMNS]
+      const rows = syncRun.records.map((r) => [
+        r.assetId ?? '',
+        r.assetName ?? '',
+        r.submeterCode ?? '',
+        r.utilityType ?? '',
+        r.year?.toString() ?? '',
+        r.month?.toString() ?? '',
+        r.value?.toString() ?? '',
+      ])
+      csvPreview.value = [headers, ...rows]
+
+      validationResults.value = syncRun.records.map((r, idx) => ({
+        row: idx + 1,
+        status: r.isValid
+          ? ('pass' as const)
+          : r.validationMessage?.includes('warning')
+            ? ('warning' as const)
+            : ('error' as const),
+        message: r.validationMessage ?? 'All fields valid',
+      }))
+    } else {
+      csvPreview.value = [
+        [...OBI_COLUMNS],
+        ['—', '—', '—', '—', '—', '—', '—'],
+      ]
+      validationResults.value = [
+        {
+          row: 0,
+          status: 'warning',
+          message: `Sync succeeded with ${syncRun.recordCount} records but no record detail available`,
+        },
+      ]
+    }
+
     testStatus.value = 'success'
     wizard.setStepValid(6, true)
   } catch {
     testStatus.value = 'error'
     testError.value =
-      'Test sync failed. Check your configuration and try again.'
+      'An unexpected error occurred during the test sync. Please try again.'
     wizard.setStepValid(6, false)
   }
 }
 
 async function activateConnection() {
   activateStatus.value = 'loading'
+  const connectionId = wizard.createdConnectionId
+  if (!connectionId) {
+    activateStatus.value = 'error'
+    return
+  }
+
   try {
-    const success = await wizard.submitWizard()
-    if (success) {
+    const result = await api.putAsync<unknown>(`/connections/${connectionId}`, {
+      name: `${wizard.wizardData.outputConfig.clientName} - ${wizard.wizardData.outputConfig.platformName}`,
+      baseUrl: wizard.wizardData.apiConfig.baseUrl,
+      authType: wizard.wizardData.apiConfig.authType,
+      status: 'Active',
+      scheduleCron: wizard.wizardData.outputConfig.cronExpression,
+      clientName: wizard.wizardData.outputConfig.clientName,
+      platformName: wizard.wizardData.outputConfig.platformName,
+      sftpHost: wizard.wizardData.outputConfig.sftpHost,
+      sftpPort: wizard.wizardData.outputConfig.sftpPort,
+      sftpPath: wizard.wizardData.outputConfig.sftpPath,
+      reportingLagDays: wizard.wizardData.outputConfig.reportingLagDays,
+      endpointPath: wizard.wizardData.endpointConfig.path,
+      paginationStrategy:
+        wizard.wizardData.endpointConfig.paginationStrategy !== 'none'
+          ? wizard.wizardData.endpointConfig.paginationStrategy
+          : null,
+    })
+
+    if (result.success) {
       activateStatus.value = 'success'
     } else {
       activateStatus.value = 'error'
@@ -135,7 +244,7 @@ function goToDashboard() {
 }
 
 onMounted(() => {
-  wizard.setStepValid(6, testResult.value?.success === true)
+  wizard.setStepValid(6, false)
 })
 </script>
 
@@ -214,7 +323,7 @@ onMounted(() => {
 
       <!-- CSV Preview -->
       <div
-        v-if="testResult?.success"
+        v-if="testStatus === 'success' && csvPreview.length > 0"
         class="border border-gray-200 rounded-lg p-4"
       >
         <h4 class="text-sm font-semibold text-gray-700 mb-3">CSV Preview</h4>
@@ -223,7 +332,7 @@ onMounted(() => {
             <thead>
               <tr class="bg-gray-50">
                 <th
-                  v-for="(header, i) in testResult.csvPreview[0]"
+                  v-for="(header, i) in csvPreview[0]"
                   :key="i"
                   class="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase"
                 >
@@ -233,7 +342,7 @@ onMounted(() => {
             </thead>
             <tbody>
               <tr
-                v-for="(row, rIdx) in testResult.csvPreview.slice(1)"
+                v-for="(row, rIdx) in csvPreview.slice(1)"
                 :key="rIdx"
                 class="border-t border-gray-100"
               >
@@ -252,7 +361,7 @@ onMounted(() => {
         <!-- Validation Results -->
         <div class="mt-3 space-y-1">
           <div
-            v-for="v in testResult.validationResults"
+            v-for="v in validationResults"
             :key="v.row"
             class="flex items-center gap-2 text-xs"
           >
@@ -264,7 +373,9 @@ onMounted(() => {
                 'bg-red-500': v.status === 'error',
               }"
             />
-            <span class="text-gray-600">Row {{ v.row }}: {{ v.message }}</span>
+            <span class="text-gray-600"
+              >{{ v.row > 0 ? `Row ${v.row}: ` : '' }}{{ v.message }}</span
+            >
           </div>
         </div>
       </div>

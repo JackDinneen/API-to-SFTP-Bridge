@@ -50,6 +50,7 @@ public class SyncController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<SyncRunDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<SyncRunDto>>> GetLatest(
         Guid connectionId,
+        [FromQuery] bool includeRecords = false,
         CancellationToken cancellationToken = default)
     {
         var connection = await _connectionRepository.GetByIdAsync(connectionId, cancellationToken);
@@ -61,12 +62,34 @@ public class SyncController : ControllerBase
         var syncRuns = await _syncRunRepository.GetByConnectionIdAsync(connectionId, 1, cancellationToken);
         var latest = syncRuns.FirstOrDefault();
 
+        if (latest != null && includeRecords)
+        {
+            latest = await _syncRunRepository.GetByIdWithRecordsAsync(latest.Id, cancellationToken);
+        }
+
         if (latest == null)
         {
             return NotFound(ApiResponse<SyncRunDto>.Fail($"No sync runs found for connection {connectionId}"));
         }
 
-        return Ok(ApiResponse<SyncRunDto>.Ok(MapToDto(latest)));
+        var dto = MapToDto(latest);
+        if (includeRecords && latest.Records.Count > 0)
+        {
+            dto.Records = latest.Records.Select(r => new SyncRunRecordDto
+            {
+                AssetId = r.AssetId,
+                AssetName = r.AssetName,
+                SubmeterCode = r.SubmeterCode,
+                UtilityType = r.UtilityType,
+                Year = r.Year,
+                Month = r.Month,
+                Value = r.Value,
+                IsValid = r.IsValid,
+                ValidationMessage = r.ValidationMessage
+            }).ToList();
+        }
+
+        return Ok(ApiResponse<SyncRunDto>.Ok(dto));
     }
 
     private static SyncRunDto MapToDto(Core.Entities.SyncRun syncRun)

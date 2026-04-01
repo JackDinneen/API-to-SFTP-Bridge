@@ -202,4 +202,57 @@ internal class InMemorySyncRunRepository : ISyncRunRepository
         await _db.SaveChangesAsync(cancellationToken);
         return syncRun;
     }
+
+    public async Task<Dictionary<Guid, API.Core.Entities.SyncRun>> GetLatestByConnectionIdsAsync(IEnumerable<Guid> connectionIds, CancellationToken cancellationToken = default)
+    {
+        var ids = connectionIds.ToList();
+        if (ids.Count == 0) return new Dictionary<Guid, API.Core.Entities.SyncRun>();
+
+        var latestRuns = await _db.SyncRuns
+            .Where(s => ids.Contains(s.ConnectionId))
+            .GroupBy(s => s.ConnectionId)
+            .Select(g => g.OrderByDescending(s => s.CreatedAt).First())
+            .ToListAsync(cancellationToken);
+
+        return latestRuns.ToDictionary(s => s.ConnectionId);
+    }
+
+    public async Task<decimal?> GetSuccessRateAsync(Guid connectionId, int recentCount = 10, CancellationToken cancellationToken = default)
+    {
+        var rates = await GetSuccessRatesByConnectionIdsAsync(new[] { connectionId }, recentCount, cancellationToken);
+        return rates.GetValueOrDefault(connectionId);
+    }
+
+    public async Task<Dictionary<Guid, decimal?>> GetSuccessRatesByConnectionIdsAsync(IEnumerable<Guid> connectionIds, int recentCount = 10, CancellationToken cancellationToken = default)
+    {
+        var ids = connectionIds.ToList();
+        if (ids.Count == 0) return new Dictionary<Guid, decimal?>();
+
+        var recentRuns = await _db.SyncRuns
+            .Where(s => ids.Contains(s.ConnectionId)
+                && (s.Status == API.Core.Models.SyncRunStatus.Succeeded || s.Status == API.Core.Models.SyncRunStatus.Failed))
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var result = new Dictionary<Guid, decimal?>();
+        foreach (var id in ids)
+        {
+            var runsForConnection = recentRuns
+                .Where(s => s.ConnectionId == id)
+                .Take(recentCount)
+                .ToList();
+
+            if (runsForConnection.Count == 0)
+            {
+                result[id] = null;
+            }
+            else
+            {
+                var succeeded = runsForConnection.Count(s => s.Status == API.Core.Models.SyncRunStatus.Succeeded);
+                result[id] = Math.Round((decimal)succeeded / runsForConnection.Count * 100, 1);
+            }
+        }
+
+        return result;
+    }
 }

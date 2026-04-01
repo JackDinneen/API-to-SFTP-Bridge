@@ -17,6 +17,7 @@ public class ConnectionsController : ControllerBase
     private readonly ISchedulerService _schedulerService;
     private readonly IApiConnectorService _apiConnectorService;
     private readonly ICredentialVaultService _credentialVaultService;
+    private readonly ISyncRunRepository _syncRunRepository;
     private readonly ICurrentUserService _currentUser;
 
     public ConnectionsController(
@@ -24,12 +25,14 @@ public class ConnectionsController : ControllerBase
         ISchedulerService schedulerService,
         IApiConnectorService apiConnectorService,
         ICredentialVaultService credentialVaultService,
+        ISyncRunRepository syncRunRepository,
         ICurrentUserService currentUser)
     {
         _connectionRepository = connectionRepository;
         _schedulerService = schedulerService;
         _apiConnectorService = apiConnectorService;
         _credentialVaultService = credentialVaultService;
+        _syncRunRepository = syncRunRepository;
         _currentUser = currentUser;
     }
 
@@ -39,7 +42,24 @@ public class ConnectionsController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<ConnectionDto>>>> GetAll(CancellationToken cancellationToken)
     {
         var connections = await _connectionRepository.GetAllAsync(cancellationToken);
-        var dtos = connections.Select(MapToDto).ToList();
+        var connectionIds = connections.Select(c => c.Id).ToList();
+
+        var latestSyncRuns = await _syncRunRepository.GetLatestByConnectionIdsAsync(connectionIds, cancellationToken);
+        var successRates = await _syncRunRepository.GetSuccessRatesByConnectionIdsAsync(connectionIds, 10, cancellationToken);
+
+        var dtos = new List<ConnectionDto>();
+        foreach (var connection in connections)
+        {
+            var dto = MapToDto(connection);
+            if (latestSyncRuns.TryGetValue(connection.Id, out var latestRun))
+            {
+                dto.LastSyncAt = latestRun.CompletedAt ?? latestRun.CreatedAt;
+                dto.LastSyncRecordCount = latestRun.RecordCount;
+            }
+            dto.SuccessRate = successRates.GetValueOrDefault(connection.Id);
+            dtos.Add(dto);
+        }
+
         return Ok(ApiResponse<List<ConnectionDto>>.Ok(dtos));
     }
 
@@ -76,7 +96,7 @@ public class ConnectionsController : ControllerBase
             Name = request.Name,
             BaseUrl = request.BaseUrl,
             AuthType = request.AuthType,
-            Status = ConnectionStatus.Paused,
+            Status = request.Activate ? ConnectionStatus.Active : ConnectionStatus.Paused,
             ScheduleCron = request.ScheduleCron,
             ClientName = request.ClientName,
             PlatformName = request.PlatformName,
@@ -90,10 +110,34 @@ public class ConnectionsController : ControllerBase
             CreatedById = userId
         };
 
+        // Add field mappings to the connection entity
+        foreach (var (mappingDto, index) in request.Mappings.Select((m, i) => (m, i)))
+        {
+            if (!Enum.TryParse<TransformType>(mappingDto.TransformType, out var transformType))
+            {
+                transformType = TransformType.DirectMapping;
+            }
+
+            connection.Mappings.Add(new ConnectionMapping
+            {
+                SourcePath = mappingDto.SourcePath,
+                TargetColumn = mappingDto.TargetColumn,
+                TransformType = transformType,
+                TransformConfig = mappingDto.TransformConfig,
+                SortOrder = mappingDto.SortOrder > 0 ? mappingDto.SortOrder : index
+            });
+        }
+
         var created = await _connectionRepository.CreateAsync(connection, cancellationToken);
 
-        // Schedule if a cron expression was provided
-        if (!string.IsNullOrEmpty(request.ScheduleCron))
+        // Store credentials in Key Vault
+        if (request.Credentials != null)
+        {
+            await StoreCredentialsAsync(created.Id, request.AuthType, request.Credentials, cancellationToken);
+        }
+
+        // Schedule if a cron expression was provided and connection is active
+        if (!string.IsNullOrEmpty(request.ScheduleCron) && connection.Status == ConnectionStatus.Active)
         {
             await _schedulerService.ScheduleConnectionAsync(created.Id, request.ScheduleCron, cancellationToken);
         }
@@ -102,6 +146,129 @@ public class ConnectionsController : ControllerBase
             nameof(GetById),
             new { id = created.Id },
             ApiResponse<ConnectionDto>.Ok(MapToDto(created)));
+    }
+
+    private async Task StoreCredentialsAsync(Guid connectionId, AuthType authType, CreateCredentialDto creds, CancellationToken cancellationToken)
+    {
+        switch (authType)
+        {
+            case AuthType.ApiKey:
+                if (!string.IsNullOrEmpty(creds.ApiKey))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.ApiKey,
+                        Label = "api-key",
+                        SecretValue = creds.ApiKey
+                    }, cancellationToken);
+                }
+                if (!string.IsNullOrEmpty(creds.ApiKeyHeader))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.ApiKey,
+                        Label = "api-key-header",
+                        SecretValue = creds.ApiKeyHeader
+                    }, cancellationToken);
+                }
+                break;
+
+            case AuthType.BasicAuth:
+                if (!string.IsNullOrEmpty(creds.BasicUsername))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.BasicAuth,
+                        Label = "username",
+                        SecretValue = creds.BasicUsername
+                    }, cancellationToken);
+                }
+                if (!string.IsNullOrEmpty(creds.BasicPassword))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.BasicAuth,
+                        Label = "password",
+                        SecretValue = creds.BasicPassword
+                    }, cancellationToken);
+                }
+                break;
+
+            case AuthType.OAuth2ClientCredentials:
+                if (!string.IsNullOrEmpty(creds.OAuthClientId))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.OAuth2ClientCredentials,
+                        Label = "oauth-client-id",
+                        SecretValue = creds.OAuthClientId
+                    }, cancellationToken);
+                }
+                if (!string.IsNullOrEmpty(creds.OAuthClientSecret))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.OAuth2ClientCredentials,
+                        Label = "oauth-client-secret",
+                        SecretValue = creds.OAuthClientSecret
+                    }, cancellationToken);
+                }
+                if (!string.IsNullOrEmpty(creds.OAuthTokenUrl))
+                {
+                    await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                    {
+                        ConnectionId = connectionId,
+                        CredentialType = AuthType.OAuth2ClientCredentials,
+                        Label = "oauth-token-url",
+                        SecretValue = creds.OAuthTokenUrl
+                    }, cancellationToken);
+                }
+                break;
+
+            case AuthType.CustomHeaders:
+                if (creds.CustomHeaders != null)
+                {
+                    foreach (var header in creds.CustomHeaders.Where(h => !string.IsNullOrEmpty(h.Key)))
+                    {
+                        await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+                        {
+                            ConnectionId = connectionId,
+                            CredentialType = AuthType.CustomHeaders,
+                            Label = header.Key,
+                            SecretValue = header.Value
+                        }, cancellationToken);
+                    }
+                }
+                break;
+        }
+
+        // Always store SFTP credentials if provided
+        if (!string.IsNullOrEmpty(creds.SftpUsername))
+        {
+            await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+            {
+                ConnectionId = connectionId,
+                CredentialType = authType,
+                Label = "sftp-username",
+                SecretValue = creds.SftpUsername
+            }, cancellationToken);
+        }
+        if (!string.IsNullOrEmpty(creds.SftpPassword))
+        {
+            await _credentialVaultService.StoreCredentialAsync(new StoreCredentialRequest
+            {
+                ConnectionId = connectionId,
+                CredentialType = authType,
+                Label = "sftp-password",
+                SecretValue = creds.SftpPassword
+            }, cancellationToken);
+        }
     }
 
     [HttpPut("{id:guid}")]
