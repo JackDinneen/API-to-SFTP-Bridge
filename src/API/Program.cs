@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using API.Application.Auth;
 using API.Application.Services;
 using API.Core.Interfaces;
@@ -6,6 +7,7 @@ using API.Infrastructure.Repositories;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
@@ -111,11 +113,52 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IValidationEngineService, ValidationEngineService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+// ---------------------------------------------------------------------------
+// Rate Limiting
+// ---------------------------------------------------------------------------
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter("fixed", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 100;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 10;
+    });
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 200,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 20
+            }));
+});
+
 var app = builder.Build();
 
 // ---------------------------------------------------------------------------
 // Middleware pipeline
 // ---------------------------------------------------------------------------
+
+// Global exception handler — prevent internal details from leaking in responses
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        var response = new { success = false, message = "An unexpected error occurred." };
+        await context.Response.WriteAsJsonAsync(response);
+    });
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -125,6 +168,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
