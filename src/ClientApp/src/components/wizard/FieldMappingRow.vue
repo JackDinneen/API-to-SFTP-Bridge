@@ -41,7 +41,7 @@ const isAutoDetected = computed(
   () => !!props.autoDetectMatch && sourcePath.value === props.autoDetectMatch,
 )
 
-watch(sourcePath, (v) => emit('update:modelSourcePath', v))
+watch(sourcePath, (v) => emit('update:modelSourcePath', v), { immediate: true })
 watch(transformType, (v) => emit('update:modelTransformType', v))
 watch([staticValue, dateFormat, unitFrom, unitTo], () => {
   const config: Record<string, unknown> = {}
