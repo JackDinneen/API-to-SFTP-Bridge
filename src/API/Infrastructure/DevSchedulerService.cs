@@ -4,15 +4,17 @@ using Microsoft.Extensions.Logging;
 namespace API.Infrastructure;
 
 /// <summary>
-/// No-op scheduler for local development without Hangfire/SQL Server.
-/// Logs actions but does not actually schedule jobs.
+/// Development scheduler that executes syncs inline (no Hangfire needed).
+/// Scheduling is a no-op since there's no persistent job store.
 /// </summary>
 public class DevSchedulerService : ISchedulerService
 {
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DevSchedulerService> _logger;
 
-    public DevSchedulerService(ILogger<DevSchedulerService> logger)
+    public DevSchedulerService(IServiceProvider serviceProvider, ILogger<DevSchedulerService> logger)
     {
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -28,10 +30,26 @@ public class DevSchedulerService : ISchedulerService
         return Task.CompletedTask;
     }
 
-    public Task<string> TriggerManualSyncAsync(Guid connectionId, string triggeredBy, CancellationToken cancellationToken = default)
+    public async Task<string> TriggerManualSyncAsync(Guid connectionId, string triggeredBy, CancellationToken cancellationToken = default)
     {
-        var jobId = Guid.NewGuid().ToString();
-        _logger.LogInformation("[Dev] Would trigger manual sync for connection {ConnectionId} by {TriggeredBy}, mock job {JobId}", connectionId, triggeredBy, jobId);
-        return Task.FromResult(jobId);
+        _logger.LogInformation("[Dev] Executing sync inline for connection {ConnectionId} by {TriggeredBy}", connectionId, triggeredBy);
+
+        // Execute sync inline using a new scope (since orchestrator is scoped)
+        using var scope = _serviceProvider.CreateScope();
+        var orchestrator = scope.ServiceProvider.GetRequiredService<ISyncOrchestratorService>();
+        var result = await orchestrator.ExecuteSyncAsync(connectionId, triggeredBy, cancellationToken);
+
+        if (result.Success)
+        {
+            _logger.LogInformation("[Dev] Sync succeeded for connection {ConnectionId}: {RecordCount} records, file {FileName}",
+                connectionId, result.RecordCount, result.FileName);
+        }
+        else
+        {
+            _logger.LogWarning("[Dev] Sync failed for connection {ConnectionId} at step {Step}: {Error}",
+                connectionId, result.ErrorStep, result.ErrorMessage);
+        }
+
+        return result.SyncRunId.ToString();
     }
 }
