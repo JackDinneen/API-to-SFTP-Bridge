@@ -51,9 +51,13 @@ const isValid = computed(() => {
         config.value.oauthTokenUrl.trim()
       )
     case AuthType.BasicAuth:
-      return !!(config.value.basicUsername.trim() && config.value.basicPassword.trim())
+      return !!(
+        config.value.basicUsername.trim() && config.value.basicPassword.trim()
+      )
     case AuthType.CustomHeaders:
-      return config.value.customHeaders.some((h) => h.key.trim() && h.value.trim())
+      return config.value.customHeaders.some(
+        (h) => h.key.trim() && h.value.trim(),
+      )
     default:
       return false
   }
@@ -73,10 +77,14 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
 
 <template>
   <div class="space-y-6">
-    <h3 class="text-lg font-semibold text-gray-800">Source API Configuration</h3>
+    <h3 class="text-lg font-semibold text-gray-800">
+      Source API Configuration
+    </h3>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1"
+        >Base URL</label
+      >
       <input
         v-model="config.baseUrl"
         type="url"
@@ -86,7 +94,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
     </div>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Authentication Method</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1"
+        >Authentication Method</label
+      >
       <select
         v-model="config.authType"
         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -100,7 +110,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
     <!-- API Key -->
     <template v-if="config.authType === AuthType.ApiKey">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >API Key</label
+        >
         <input
           v-model="config.apiKey"
           type="password"
@@ -109,7 +121,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Header Name</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Header Name</label
+        >
         <input
           v-model="config.apiKeyHeader"
           type="text"
@@ -122,7 +136,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
     <!-- OAuth 2.0 -->
     <template v-if="config.authType === AuthType.OAuth2ClientCredentials">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Client ID</label
+        >
         <input
           v-model="config.oauthClientId"
           type="text"
@@ -131,7 +147,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Client Secret</label
+        >
         <input
           v-model="config.oauthClientSecret"
           type="password"
@@ -140,7 +158,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Token URL</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Token URL</label
+        >
         <input
           v-model="config.oauthTokenUrl"
           type="url"
@@ -153,7 +173,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
     <!-- Basic Auth -->
     <template v-if="config.authType === AuthType.BasicAuth">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Username</label
+        >
         <input
           v-model="config.basicUsername"
           type="text"
@@ -162,7 +184,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Password</label
+        >
         <input
           v-model="config.basicPassword"
           type="password"
@@ -175,7 +199,9 @@ watch(isValid, (v) => wizard.setStepValid(1, v), { immediate: true })
     <!-- Custom Headers -->
     <template v-if="config.authType === AuthType.CustomHeaders">
       <div class="space-y-2">
-        <label class="block text-sm font-medium text-gray-700">Custom Headers</label>
+        <label class="block text-sm font-medium text-gray-700"
+          >Custom Headers</label
+        >
         <div
           v-for="(header, idx) in config.customHeaders"
           :key="idx"

@@ -69,7 +69,9 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
     <h3 class="text-lg font-semibold text-gray-800">Endpoint Discovery</h3>
 
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Endpoint Path</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1"
+        >Endpoint Path</label
+      >
       <input
         v-model="config.path"
         type="text"
@@ -97,15 +99,20 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
       <h4 class="text-sm font-medium text-gray-700 mb-2">Response Structure</h4>
       <JsonTreeViewer :data="config.sampleResponse" @select="onFieldSelect" />
       <p v-if="selectedPath" class="mt-2 text-xs text-blue-600">
-        Selected: <code class="bg-blue-50 px-1 py-0.5 rounded">{{ selectedPath }}</code>
+        Selected:
+        <code class="bg-blue-50 px-1 py-0.5 rounded">{{ selectedPath }}</code>
       </p>
     </div>
 
     <!-- Pagination -->
     <div class="border-t border-gray-200 pt-4">
-      <h4 class="text-sm font-medium text-gray-700 mb-3">Pagination Configuration</h4>
+      <h4 class="text-sm font-medium text-gray-700 mb-3">
+        Pagination Configuration
+      </h4>
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-1">Strategy</label>
+        <label class="block text-sm font-medium text-gray-600 mb-1"
+          >Strategy</label
+        >
         <select
           v-model="config.paginationStrategy"
           class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -122,7 +129,9 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
 
       <div v-if="config.paginationStrategy !== 'none'" class="mt-3 space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Page Size</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Page Size</label
+          >
           <input
             v-model.number="config.pageSize"
             type="number"
@@ -132,7 +141,9 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
         </div>
 
         <div v-if="config.paginationStrategy === 'offset'">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Offset Parameter</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Offset Parameter</label
+          >
           <input
             v-model="config.offsetParam"
             type="text"
@@ -142,7 +153,9 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
         </div>
 
         <div v-if="config.paginationStrategy === 'cursor'">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Cursor Parameter</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Cursor Parameter</label
+          >
           <input
             v-model="config.cursorParam"
             type="text"
@@ -152,7 +165,9 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
         </div>
 
         <div v-if="config.paginationStrategy === 'page'">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Page Parameter</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Page Parameter</label
+          >
           <input
             v-model="config.pageParam"
             type="text"

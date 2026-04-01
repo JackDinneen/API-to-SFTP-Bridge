@@ -88,7 +88,9 @@ function handleBack() {
           <div
             v-if="idx < STEP_TITLES.length - 1"
             class="flex-1 h-0.5 mx-2 mt-[-1rem]"
-            :class="wizard.currentStep > idx + 1 ? 'bg-indigo-400' : 'bg-gray-200'"
+            :class="
+              wizard.currentStep > idx + 1 ? 'bg-indigo-400' : 'bg-gray-200'
+            "
           />
         </li>
       </ol>

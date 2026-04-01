@@ -63,7 +63,9 @@ const arrayLength = computed(() =>
         class="flex items-center gap-1 hover:bg-blue-50 rounded px-1 -ml-1 text-left"
         @click="toggle"
       >
-        <span class="text-gray-400 w-4 text-center">{{ collapsed ? '+' : '-' }}</span>
+        <span class="text-gray-400 w-4 text-center">{{
+          collapsed ? '+' : '-'
+        }}</span>
         <span class="text-purple-600">{{
           dataType === 'array' ? `Array(${arrayLength})` : 'Object'
         }}</span>
@@ -91,12 +93,15 @@ const arrayLength = computed(() =>
             />
           </template>
           <template v-else>
-            <span class="ml-1" :class="{
-              'text-green-700': typeof val === 'string',
-              'text-orange-600': typeof val === 'number',
-              'text-red-600': typeof val === 'boolean',
-              'text-gray-400': val === null,
-            }">
+            <span
+              class="ml-1"
+              :class="{
+                'text-green-700': typeof val === 'string',
+                'text-orange-600': typeof val === 'number',
+                'text-red-600': typeof val === 'boolean',
+                'text-gray-400': val === null,
+              }"
+            >
               {{ typeof val === 'string' ? `"${val}"` : String(val) }}
             </span>
           </template>
@@ -104,12 +109,14 @@ const arrayLength = computed(() =>
       </div>
     </template>
     <template v-else>
-      <span :class="{
-        'text-green-700': typeof data === 'string',
-        'text-orange-600': typeof data === 'number',
-        'text-red-600': typeof data === 'boolean',
-        'text-gray-400': data === null,
-      }">
+      <span
+        :class="{
+          'text-green-700': typeof data === 'string',
+          'text-orange-600': typeof data === 'number',
+          'text-red-600': typeof data === 'boolean',
+          'text-gray-400': data === null,
+        }"
+      >
         {{ typeof data === 'string' ? `"${data}"` : String(data) }}
       </span>
     </template>

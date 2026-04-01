@@ -56,7 +56,11 @@ export interface OutputConfig {
 export interface TestResult {
   success: boolean
   csvPreview: string[][]
-  validationResults: { row: number; status: 'pass' | 'warning' | 'error'; message: string }[]
+  validationResults: {
+    row: number
+    status: 'pass' | 'warning' | 'error'
+    message: string
+  }[]
 }
 
 export interface WizardData {
@@ -148,7 +152,9 @@ export const useWizardStore = defineStore('wizard', () => {
 
   const isFirstStep = computed(() => currentStep.value === 1)
   const isLastStep = computed(() => currentStep.value === 6)
-  const currentStepValid = computed(() => stepValid.value[currentStep.value] ?? false)
+  const currentStepValid = computed(
+    () => stepValid.value[currentStep.value] ?? false,
+  )
 
   function nextStep() {
     if (currentStep.value < 6) {
@@ -162,7 +168,10 @@ export const useWizardStore = defineStore('wizard', () => {
     }
   }
 
-  function setStepData<K extends keyof WizardData>(key: K, data: WizardData[K]) {
+  function setStepData<K extends keyof WizardData>(
+    key: K,
+    data: WizardData[K],
+  ) {
     wizardData.value[key] = data
   }
 
@@ -173,7 +182,14 @@ export const useWizardStore = defineStore('wizard', () => {
   function resetWizard() {
     currentStep.value = 1
     wizardData.value = createDefaultWizardData()
-    stepValid.value = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false }
+    stepValid.value = {
+      1: false,
+      2: false,
+      3: false,
+      4: false,
+      5: false,
+      6: false,
+    }
   }
 
   async function submitWizard(): Promise<boolean> {

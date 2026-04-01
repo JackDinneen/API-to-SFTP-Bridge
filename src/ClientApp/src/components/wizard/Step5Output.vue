@@ -27,7 +27,8 @@ const cronPreview = computed(() => {
 const fileNamePreview = computed(() => {
   const client = config.value.clientName.trim() || 'ClientName'
   const platform = config.value.platformName.trim() || 'PlatformName'
-  const safe = (s: string) => s.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+  const safe = (s: string) =>
+    s.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
   return `${safe(client)}_${safe(platform)}_2026-03.csv`
 })
 
@@ -66,7 +67,9 @@ onMounted(() => {
     <!-- Client / Platform -->
     <div class="grid grid-cols-2 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Client Name</label
+        >
         <input
           v-model="config.clientName"
           type="text"
@@ -75,7 +78,9 @@ onMounted(() => {
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Platform Name</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Platform Name</label
+        >
         <input
           v-model="config.platformName"
           type="text"
@@ -90,7 +95,9 @@ onMounted(() => {
       <h4 class="text-sm font-semibold text-gray-700 mb-3">SFTP Destination</h4>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Host</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Host</label
+          >
           <input
             v-model="config.sftpHost"
             type="text"
@@ -99,7 +106,9 @@ onMounted(() => {
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Port</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Port</label
+          >
           <input
             v-model.number="config.sftpPort"
             type="number"
@@ -109,7 +118,9 @@ onMounted(() => {
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Username</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Username</label
+          >
           <input
             v-model="config.sftpUsername"
             type="text"
@@ -118,7 +129,9 @@ onMounted(() => {
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Password</label
+          >
           <input
             v-model="config.sftpPassword"
             type="password"
@@ -127,7 +140,9 @@ onMounted(() => {
           />
         </div>
         <div class="col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Upload Path</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Upload Path</label
+          >
           <input
             v-model="config.sftpPath"
             type="text"
@@ -143,19 +158,27 @@ onMounted(() => {
       <h4 class="text-sm font-semibold text-gray-700 mb-3">Sync Schedule</h4>
       <div class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Frequency</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Frequency</label
+          >
           <select
             v-model="config.simpleFrequency"
             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option v-for="opt in frequencyOptions" :key="opt.value" :value="opt.value">
+            <option
+              v-for="opt in frequencyOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
               {{ opt.label }}
             </option>
           </select>
         </div>
 
         <div v-if="config.simpleFrequency === 'monthly'">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Day of Month</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Day of Month</label
+          >
           <input
             v-model.number="config.simpleDay"
             type="number"
@@ -166,15 +189,21 @@ onMounted(() => {
         </div>
 
         <div class="bg-gray-50 rounded-md p-3">
-          <span class="text-xs font-medium text-gray-500">Cron Expression: </span>
-          <code class="text-sm text-indigo-700 font-mono">{{ cronPreview }}</code>
+          <span class="text-xs font-medium text-gray-500"
+            >Cron Expression:
+          </span>
+          <code class="text-sm text-indigo-700 font-mono">{{
+            cronPreview
+          }}</code>
         </div>
       </div>
     </div>
 
     <!-- Reporting Lag -->
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Reporting Lag (days)</label>
+      <label class="block text-sm font-medium text-gray-700 mb-1"
+        >Reporting Lag (days)</label
+      >
       <input
         v-model.number="config.reportingLagDays"
         type="number"
@@ -183,14 +212,17 @@ onMounted(() => {
         class="w-48 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
       <p class="text-xs text-gray-500 mt-1">
-        How many days behind the current date the data is expected to be available.
+        How many days behind the current date the data is expected to be
+        available.
       </p>
     </div>
 
     <!-- File Name Preview -->
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
       <span class="text-sm font-medium text-gray-700">File Name Preview: </span>
-      <code class="text-sm text-indigo-700 font-mono">{{ fileNamePreview }}</code>
+      <code class="text-sm text-indigo-700 font-mono">{{
+        fileNamePreview
+      }}</code>
     </div>
   </div>
 </template>

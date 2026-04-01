@@ -45,7 +45,8 @@ watch(sourcePath, (v) => emit('update:modelSourcePath', v))
 watch(transformType, (v) => emit('update:modelTransformType', v))
 watch([staticValue, dateFormat, unitFrom, unitTo], () => {
   const config: Record<string, unknown> = {}
-  if (transformType.value === 'Static Value') config.staticValue = staticValue.value
+  if (transformType.value === 'Static Value')
+    config.staticValue = staticValue.value
   if (transformType.value === 'Date Parse') config.dateFormat = dateFormat.value
   if (transformType.value === 'Unit Conversion') {
     config.unitFrom = unitFrom.value
@@ -56,9 +57,13 @@ watch([staticValue, dateFormat, unitFrom, unitTo], () => {
 </script>
 
 <template>
-  <div class="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100">
+  <div
+    class="grid grid-cols-12 gap-3 items-start py-3 border-b border-gray-100"
+  >
     <div class="col-span-3">
-      <span class="text-sm font-semibold text-gray-800">{{ targetColumn }}</span>
+      <span class="text-sm font-semibold text-gray-800">{{
+        targetColumn
+      }}</span>
     </div>
     <div class="col-span-4">
       <div class="relative">
@@ -85,7 +90,9 @@ watch([staticValue, dateFormat, unitFrom, unitTo], () => {
         v-model="transformType"
         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        <option v-for="t in TRANSFORM_TYPES" :key="t" :value="t">{{ t }}</option>
+        <option v-for="t in TRANSFORM_TYPES" :key="t" :value="t">
+          {{ t }}
+        </option>
       </select>
     </div>
     <div class="col-span-3">
@@ -117,7 +124,9 @@ watch([staticValue, dateFormat, unitFrom, unitTo], () => {
           class="w-1/2 rounded-md border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-      <span v-else class="text-xs text-gray-400 py-2 block">No config needed</span>
+      <span v-else class="text-xs text-gray-400 py-2 block"
+        >No config needed</span
+      >
     </div>
   </div>
 </template>

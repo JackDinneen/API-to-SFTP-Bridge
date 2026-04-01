@@ -10,7 +10,11 @@ function createTestRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', redirect: '/dashboard' },
-      { path: '/dashboard', name: 'dashboard', component: { template: '<div>Dashboard</div>' } },
+      {
+        path: '/dashboard',
+        name: 'dashboard',
+        component: { template: '<div>Dashboard</div>' },
+      },
       { path: '/connections/new', name: 'wizard', component: WizardView },
     ],
   })
@@ -36,7 +40,9 @@ describe('WizardView', () => {
   it('renders step indicator with all 6 steps', () => {
     const { wrapper } = mountWizard()
     for (let i = 1; i <= 6; i++) {
-      expect(wrapper.find(`[data-testid="step-indicator-${i}"]`).exists()).toBe(true)
+      expect(wrapper.find(`[data-testid="step-indicator-${i}"]`).exists()).toBe(
+        true,
+      )
     }
   })
 
