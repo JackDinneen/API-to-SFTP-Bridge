@@ -8,52 +8,59 @@ describe('StatusBadge', () => {
     const wrapper = mount(StatusBadge, {
       props: { status: ConnectionStatus.Active },
     })
-    expect(wrapper.text()).toBe('Active')
-    expect(wrapper.find('span').classes()).toContain('bg-green-100')
-    expect(wrapper.find('span').classes()).toContain('text-green-800')
+    expect(wrapper.text()).toContain('Active')
+    expect(wrapper.find('span').classes()).toContain('bg-green-50')
+    expect(wrapper.find('span').classes()).toContain('text-green-600')
   })
 
-  it('renders Paused status with yellow color', () => {
+  it('renders Paused status with amber color', () => {
     const wrapper = mount(StatusBadge, {
       props: { status: ConnectionStatus.Paused },
     })
-    expect(wrapper.text()).toBe('Paused')
-    expect(wrapper.find('span').classes()).toContain('bg-yellow-100')
-    expect(wrapper.find('span').classes()).toContain('text-yellow-800')
+    expect(wrapper.text()).toContain('Paused')
+    expect(wrapper.find('span').classes()).toContain('bg-amber-50')
+    expect(wrapper.find('span').classes()).toContain('text-amber-600')
   })
 
   it('renders Error status with red color', () => {
     const wrapper = mount(StatusBadge, {
       props: { status: ConnectionStatus.Error },
     })
-    expect(wrapper.text()).toBe('Error')
-    expect(wrapper.find('span').classes()).toContain('bg-red-100')
-    expect(wrapper.find('span').classes()).toContain('text-red-800')
+    expect(wrapper.text()).toContain('Error')
+    expect(wrapper.find('span').classes()).toContain('bg-red-50')
+    expect(wrapper.find('span').classes()).toContain('text-red-600')
   })
 
   it('renders Succeeded status with green color', () => {
     const wrapper = mount(StatusBadge, {
       props: { status: SyncRunStatus.Succeeded },
     })
-    expect(wrapper.text()).toBe('Succeeded')
-    expect(wrapper.find('span').classes()).toContain('bg-green-100')
+    expect(wrapper.text()).toContain('Succeeded')
+    expect(wrapper.find('span').classes()).toContain('bg-green-50')
   })
 
   it('renders Running status with blue color', () => {
     const wrapper = mount(StatusBadge, {
       props: { status: SyncRunStatus.Running },
     })
-    expect(wrapper.text()).toBe('Running')
-    expect(wrapper.find('span').classes()).toContain('bg-blue-100')
-    expect(wrapper.find('span').classes()).toContain('text-blue-800')
+    expect(wrapper.text()).toContain('Running')
+    expect(wrapper.find('span').classes()).toContain('bg-blue-50')
+    expect(wrapper.find('span').classes()).toContain('text-blue-600')
   })
 
   it('renders Failed status with red color', () => {
     const wrapper = mount(StatusBadge, {
       props: { status: SyncRunStatus.Failed },
     })
-    expect(wrapper.text()).toBe('Failed')
-    expect(wrapper.find('span').classes()).toContain('bg-red-100')
+    expect(wrapper.text()).toContain('Failed')
+    expect(wrapper.find('span').classes()).toContain('bg-red-50')
+  })
+
+  it('renders icon SVG', () => {
+    const wrapper = mount(StatusBadge, {
+      props: { status: ConnectionStatus.Active },
+    })
+    expect(wrapper.find('svg').exists()).toBe(true)
   })
 
   it('has correct aria-label', () => {

@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+:root {
+  --navy-dark: 232 47% 13%;
+  --navy-mid: 232 35% 20%;
+  --navy-light: 232 25% 30%;
+  --obi-sidebar: hsl(var(--navy-dark));
+  --obi-sidebar-hover: hsl(var(--navy-mid));
+  --obi-sidebar-active: hsl(var(--navy-light));
+  --obi-sidebar-text: #8c8ca1;
+  --obi-sidebar-text-active: #ffffff;
+  --obi-header-bg: #ffffff;
+  --obi-body-bg: #f5f5f9;
+  --obi-danger: #e74c3c;
+  --obi-warning: #f39c12;
+  --obi-success: #27ae60;
+  --obi-info: #3498db;
+}
+
+body {
+  background-color: var(--obi-body-bg);
+}

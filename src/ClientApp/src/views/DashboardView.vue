@@ -1,106 +1,189 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConnectionsStore } from '@/stores/connections'
 import { ConnectionStatus } from '@/types'
-import ConnectionCard from '@/components/dashboard/ConnectionCard.vue'
+import type { DataTableColumn } from '@/types'
+import SummaryCard from '@/components/shared/SummaryCard.vue'
+import SearchToolbar from '@/components/shared/SearchToolbar.vue'
+import DataTable from '@/components/shared/DataTable.vue'
+import StatusBadge from '@/components/shared/StatusBadge.vue'
+import HealthIndicator from '@/components/shared/HealthIndicator.vue'
 import LoadingSpinner from '@/components/shared/LoadingSpinner.vue'
 
 const router = useRouter()
 const connectionsStore = useConnectionsStore()
+const searchQuery = ref('')
 
 onMounted(() => {
   connectionsStore.fetchConnections()
 })
 
-async function handleSyncNow(id: string) {
-  await connectionsStore.triggerSync(id)
-  await connectionsStore.fetchConnections()
+const filteredConnections = computed(() => {
+  const q = searchQuery.value.toLowerCase()
+  if (!q) return connectionsStore.connections
+  return connectionsStore.connections.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.clientName.toLowerCase().includes(q) ||
+      c.platformName.toLowerCase().includes(q),
+  )
+})
+
+const activeCount = computed(
+  () =>
+    connectionsStore.connections.filter(
+      (c) => c.status === ConnectionStatus.Active,
+    ).length,
+)
+const pausedCount = computed(
+  () =>
+    connectionsStore.connections.filter(
+      (c) => c.status === ConnectionStatus.Paused,
+    ).length,
+)
+const errorCount = computed(
+  () =>
+    connectionsStore.connections.filter(
+      (c) => c.status === ConnectionStatus.Error,
+    ).length,
+)
+const totalCount = computed(() => connectionsStore.connections.length)
+
+const summarySegments = computed(() => {
+  const total = totalCount.value || 1
+  return [
+    { color: 'var(--obi-success)', value: (activeCount.value / total) * 100 },
+    { color: 'var(--obi-warning)', value: (pausedCount.value / total) * 100 },
+    { color: 'var(--obi-danger)', value: (errorCount.value / total) * 100 },
+  ]
+})
+
+const columns: DataTableColumn[] = [
+  { key: 'rowNum', label: '#', sortable: false },
+  { key: 'name', label: 'Name', sortable: true },
+  { key: 'clientPlatform', label: 'Client / Platform', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'lastSyncAt', label: 'Last Sync', sortable: true },
+  { key: 'lastSyncRecordCount', label: 'Records', sortable: true },
+  { key: 'health', label: 'Health', sortable: true },
+  { key: 'nextSyncAt', label: 'Next Sync', sortable: true },
+]
+
+const tableData = computed(() =>
+  filteredConnections.value.map((c, idx) => ({
+    id: c.id,
+    rowNum: idx + 1,
+    name: c.name,
+    clientPlatform: `${c.clientName} / ${c.platformName}`,
+    status: c.status,
+    lastSyncAt: c.lastSyncAt,
+    lastSyncRecordCount: c.lastSyncRecordCount ?? 0,
+    health: c.successRate ?? 100,
+    nextSyncAt: c.nextSyncAt,
+  })),
+)
+
+function formatDate(val: unknown): string {
+  if (!val || typeof val !== 'string') return '-'
+  return new Date(val).toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
-async function handleTogglePause(id: string) {
-  const conn = connectionsStore.connections.find((c) => c.id === id)
-  if (!conn) return
-  const newStatus =
-    conn.status === ConnectionStatus.Paused
-      ? ConnectionStatus.Active
-      : ConnectionStatus.Paused
-  await connectionsStore.updateConnection(id, { status: newStatus })
-  await connectionsStore.fetchConnections()
-}
-
-function handleViewDetails(id: string) {
-  router.push({ name: 'connection-detail', params: { id } })
+function handleRowClick(row: Record<string, unknown>) {
+  router.push({ name: 'connection-detail', params: { id: row.id as string } })
 }
 </script>
 
 <template>
   <div>
-    <div class="mb-6 flex items-center justify-between">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
-        <p class="mt-1 text-sm text-gray-500">
-          Manage your API-to-SFTP connections
-        </p>
-      </div>
-      <RouterLink
-        :to="{ name: 'wizard' }"
-        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-      >
-        New Connection
-      </RouterLink>
-    </div>
-
-    <div
-      v-if="connectionsStore.error"
-      class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700"
-      role="alert"
-    >
-      {{ connectionsStore.error }}
-    </div>
-
     <LoadingSpinner v-if="connectionsStore.loading" size="lg" />
 
-    <div
-      v-else-if="connectionsStore.connections.length === 0"
-      class="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center"
-      data-testid="empty-state"
-    >
-      <svg
-        class="mx-auto h-12 w-12 text-gray-400"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="1.5"
-          d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.04a4.5 4.5 0 00-6.364-6.364L4.34 8.398a4.5 4.5 0 001.242 7.244"
+    <template v-else>
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
+        <SummaryCard
+          title="Active"
+          :count="activeCount"
+          :segments="summarySegments"
         />
-      </svg>
-      <h3 class="mt-4 text-lg font-medium text-gray-900">No connections yet</h3>
-      <p class="mt-2 text-sm text-gray-500">
-        Get started by creating your first API-to-SFTP connection.
-      </p>
-      <RouterLink
-        :to="{ name: 'wizard' }"
-        class="mt-4 inline-block rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-      >
-        Create Connection
-      </RouterLink>
-    </div>
+        <SummaryCard
+          title="Paused"
+          :count="pausedCount"
+          :segments="[
+            { color: 'var(--obi-warning)', value: 60 },
+            { color: 'var(--obi-success)', value: 40 },
+          ]"
+        />
+        <SummaryCard
+          title="Error"
+          :count="errorCount"
+          :segments="[
+            { color: 'var(--obi-danger)', value: 70 },
+            { color: 'var(--obi-warning)', value: 30 },
+          ]"
+        />
+        <SummaryCard
+          title="Total"
+          :count="totalCount"
+          :segments="summarySegments"
+        />
+      </div>
 
-    <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <ConnectionCard
-        v-for="connection in connectionsStore.connections"
-        :key="connection.id"
-        :connection="connection"
-        @sync-now="handleSyncNow"
-        @toggle-pause="handleTogglePause"
-        @view-details="handleViewDetails"
+      <!-- Search Toolbar -->
+      <SearchToolbar
+        placeholder="Search name, client, platform..."
+        :result-count="filteredConnections.length"
+        @search="(q: string) => (searchQuery = q)"
       />
-    </div>
+
+      <!-- Connections Table -->
+      <DataTable
+        :columns="columns"
+        :data="tableData as unknown as Record<string, unknown>[]"
+        :selectable="true"
+        empty-message="No connections yet. Click '+ ADD NEW' to create one."
+      >
+        <template #cell-rowNum="{ value }">
+          <span class="text-gray-400">{{ value }}</span>
+        </template>
+        <template #cell-name="{ row }">
+          <button
+            class="font-medium text-gray-900 hover:underline"
+            @click="handleRowClick(row)"
+          >
+            {{ row.name }}
+          </button>
+        </template>
+        <template #cell-status="{ row }">
+          <StatusBadge
+            :status="
+              (row as Record<string, unknown>).status as ConnectionStatus
+            "
+          />
+        </template>
+        <template #cell-lastSyncAt="{ value }">
+          {{ formatDate(value) }}
+        </template>
+        <template #cell-health="{ row }">
+          <HealthIndicator
+            :success-rate="(row as Record<string, unknown>).health as number"
+          />
+        </template>
+        <template #cell-nextSyncAt="{ value }">
+          <span
+            :class="{
+              'text-red-600 font-medium':
+                value && new Date(value as string) < new Date(),
+            }"
+          >
+            {{ formatDate(value) }}
+          </span>
+        </template>
+      </DataTable>
+    </template>
   </div>
 </template>

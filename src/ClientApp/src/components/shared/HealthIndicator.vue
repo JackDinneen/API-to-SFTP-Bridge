@@ -5,10 +5,25 @@ const props = defineProps<{
   successRate: number
 }>()
 
-const colorClass = computed(() => {
-  if (props.successRate >= 95) return 'bg-green-500'
-  if (props.successRate >= 80) return 'bg-yellow-500'
-  return 'bg-red-500'
+const segments = computed(() => {
+  const rate = props.successRate
+  if (rate >= 95)
+    return [
+      { width: 85, color: 'var(--obi-success)' },
+      { width: 10, color: 'var(--obi-warning)' },
+      { width: 5, color: 'var(--obi-danger)' },
+    ]
+  if (rate >= 80)
+    return [
+      { width: 50, color: 'var(--obi-success)' },
+      { width: 35, color: 'var(--obi-warning)' },
+      { width: 15, color: 'var(--obi-danger)' },
+    ]
+  return [
+    { width: 20, color: 'var(--obi-success)' },
+    { width: 20, color: 'var(--obi-warning)' },
+    { width: 60, color: 'var(--obi-danger)' },
+  ]
 })
 
 const label = computed(() => {
@@ -23,12 +38,14 @@ const label = computed(() => {
     class="flex items-center gap-2"
     :aria-label="`Health: ${label} (${props.successRate}%)`"
   >
-    <span
-      :class="colorClass"
-      class="inline-block h-3 w-3 rounded-full"
-      role="img"
-      :aria-label="label"
-    />
-    <span class="text-sm text-gray-600">{{ props.successRate }}%</span>
+    <div class="flex h-1.5 w-16 overflow-hidden rounded-full bg-gray-100">
+      <div
+        v-for="(seg, idx) in segments"
+        :key="idx"
+        :style="{ width: seg.width + '%', backgroundColor: seg.color }"
+        class="h-full"
+      />
+    </div>
+    <span class="text-xs text-gray-500">{{ props.successRate }}%</span>
   </div>
 </template>

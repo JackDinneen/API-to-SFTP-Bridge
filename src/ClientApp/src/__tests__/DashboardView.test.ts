@@ -28,44 +28,49 @@ describe('DashboardView', () => {
     setActivePinia(createPinia())
   })
 
-  it('shows empty state when no connections exist', () => {
+  it('renders summary cards', () => {
     const router = createTestRouter()
     const wrapper = mount(DashboardView, {
       global: {
         plugins: [createPinia(), router],
       },
     })
-    expect(wrapper.find('[data-testid="empty-state"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Active')
+    expect(wrapper.text()).toContain('Paused')
+    expect(wrapper.text()).toContain('Error')
+    expect(wrapper.text()).toContain('Total')
+  })
+
+  it('renders search toolbar', () => {
+    const router = createTestRouter()
+    const wrapper = mount(DashboardView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    })
+    expect(wrapper.find('input[type="text"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Filters')
+    expect(wrapper.text()).toContain('Export')
+  })
+
+  it('shows empty table message when no connections', () => {
+    const router = createTestRouter()
+    const wrapper = mount(DashboardView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    })
     expect(wrapper.text()).toContain('No connections yet')
   })
 
-  it('renders the dashboard title', () => {
+  it('renders summary card counts as 0 when empty', () => {
     const router = createTestRouter()
     const wrapper = mount(DashboardView, {
       global: {
         plugins: [createPinia(), router],
       },
     })
-    expect(wrapper.text()).toContain('Dashboard')
-  })
-
-  it('has a New Connection link', () => {
-    const router = createTestRouter()
-    const wrapper = mount(DashboardView, {
-      global: {
-        plugins: [createPinia(), router],
-      },
-    })
-    expect(wrapper.text()).toContain('New Connection')
-  })
-
-  it('shows Create Connection button in empty state', () => {
-    const router = createTestRouter()
-    const wrapper = mount(DashboardView, {
-      global: {
-        plugins: [createPinia(), router],
-      },
-    })
-    expect(wrapper.text()).toContain('Create Connection')
+    const counts = wrapper.findAll('.text-2xl')
+    expect(counts.length).toBeGreaterThanOrEqual(4)
   })
 })

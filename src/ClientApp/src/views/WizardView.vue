@@ -58,10 +58,15 @@ function handleBack() {
             <span
               class="flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold shrink-0"
               :class="{
-                'bg-indigo-600 text-white': wizard.currentStep === idx + 1,
-                'bg-indigo-100 text-indigo-700': wizard.currentStep > idx + 1,
+                'text-white': wizard.currentStep === idx + 1,
+                'bg-green-100 text-green-700': wizard.currentStep > idx + 1,
                 'bg-gray-200 text-gray-500': wizard.currentStep < idx + 1,
               }"
+              :style="
+                wizard.currentStep === idx + 1
+                  ? 'background-color: hsl(var(--navy-dark))'
+                  : ''
+              "
               :data-testid="`step-indicator-${idx + 1}`"
             >
               <template v-if="wizard.currentStep > idx + 1">
@@ -78,7 +83,7 @@ function handleBack() {
             <span
               class="mt-1 text-xs font-medium whitespace-nowrap"
               :class="{
-                'text-indigo-700': wizard.currentStep >= idx + 1,
+                'text-gray-900': wizard.currentStep >= idx + 1,
                 'text-gray-400': wizard.currentStep < idx + 1,
               }"
             >
@@ -89,7 +94,7 @@ function handleBack() {
             v-if="idx < STEP_TITLES.length - 1"
             class="flex-1 h-0.5 mx-2 mt-[-1rem]"
             :class="
-              wizard.currentStep > idx + 1 ? 'bg-indigo-400' : 'bg-gray-200'
+              wizard.currentStep > idx + 1 ? 'bg-gray-700' : 'bg-gray-200'
             "
           />
         </li>
@@ -123,7 +128,8 @@ function handleBack() {
         <button
           v-if="!wizard.isLastStep"
           type="button"
-          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          style="background-color: hsl(var(--navy-dark))"
           :disabled="!wizard.currentStepValid"
           data-testid="next-button"
           @click="handleNext"

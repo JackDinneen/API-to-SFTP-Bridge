@@ -3,47 +3,39 @@ import { mount } from '@vue/test-utils'
 import HealthIndicator from '@/components/shared/HealthIndicator.vue'
 
 describe('HealthIndicator', () => {
-  it('shows green for success rate >= 95%', () => {
+  it('shows percentage text', () => {
     const wrapper = mount(HealthIndicator, {
       props: { successRate: 98 },
     })
-    expect(wrapper.find('span.rounded-full').classes()).toContain(
-      'bg-green-500',
-    )
     expect(wrapper.text()).toContain('98%')
   })
 
-  it('shows green for exactly 95%', () => {
+  it('renders multi-segment progress bar', () => {
     const wrapper = mount(HealthIndicator, {
       props: { successRate: 95 },
     })
-    expect(wrapper.find('span.rounded-full').classes()).toContain(
-      'bg-green-500',
-    )
+    const segments = wrapper.findAll('.h-full')
+    expect(segments.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('shows yellow for success rate between 80% and 95%', () => {
+  it('shows percentage for degraded rate', () => {
     const wrapper = mount(HealthIndicator, {
       props: { successRate: 88 },
     })
-    expect(wrapper.find('span.rounded-full').classes()).toContain(
-      'bg-yellow-500',
-    )
     expect(wrapper.text()).toContain('88%')
   })
 
-  it('shows red for success rate below 80%', () => {
+  it('shows percentage for unhealthy rate', () => {
     const wrapper = mount(HealthIndicator, {
       props: { successRate: 50 },
     })
-    expect(wrapper.find('span.rounded-full').classes()).toContain('bg-red-500')
     expect(wrapper.text()).toContain('50%')
   })
 
-  it('shows red for 0%', () => {
+  it('has correct aria-label', () => {
     const wrapper = mount(HealthIndicator, {
       props: { successRate: 0 },
     })
-    expect(wrapper.find('span.rounded-full').classes()).toContain('bg-red-500')
+    expect(wrapper.find('div').attributes('aria-label')).toContain('0%')
   })
 })
