@@ -2,6 +2,7 @@ using API.Application.Auth;
 using API.Application.Services;
 using API.Core.Interfaces;
 using API.Infrastructure.Data;
+using API.Infrastructure.Repositories;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
@@ -99,6 +100,16 @@ builder.Services.AddCors(options =>
 // Application services (register here as they are created)
 // ---------------------------------------------------------------------------
 // builder.Services.AddScoped<ISyncService, SyncService>();
+
+// Repositories
+builder.Services.AddScoped<IReferenceDataRepository, ReferenceDataRepository>();
+builder.Services.AddScoped<INotificationConfigRepository, NotificationConfigRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+
+// Services
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IValidationEngineService, ValidationEngineService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 var app = builder.Build();
 

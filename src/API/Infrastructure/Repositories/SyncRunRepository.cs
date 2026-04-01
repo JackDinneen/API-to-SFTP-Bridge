@@ -35,6 +35,13 @@ public class SyncRunRepository : ISyncRunRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<SyncRun?> GetByIdWithRecordsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.SyncRuns
+            .Include(s => s.Records)
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+    }
+
     public async Task<SyncRun> UpdateAsync(SyncRun syncRun, CancellationToken cancellationToken = default)
     {
         _context.SyncRuns.Update(syncRun);
