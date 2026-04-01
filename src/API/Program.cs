@@ -14,11 +14,19 @@ using Microsoft.Identity.Web;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------------------------------------------------------------------------
-// Database — EF Core with SQL Server
+// Database — EF Core (SQL Server in production, InMemory for development)
 // ---------------------------------------------------------------------------
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
+else
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseInMemoryDatabase("ObiBridgeDev"));
+}
 
 // ---------------------------------------------------------------------------
 // Controllers + Swagger / OpenAPI
@@ -64,17 +72,10 @@ if (azureAdSection.Exists())
 }
 else
 {
-    // Development fallback — use JWT bearer with development settings
-    builder.Services.AddAuthentication("Bearer")
-        .AddJwtBearer("Bearer", options =>
-        {
-            options.Authority = builder.Configuration["Auth:Authority"] ?? "https://login.microsoftonline.com/common";
-            options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
-            {
-                ValidateAudience = false,
-                ValidateIssuer = false // Only for development!
-            };
-        });
+    // Development fallback — accept any request as authenticated Admin user
+    builder.Services.AddAuthentication("DevScheme")
+        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, API.Infrastructure.DevAuthHandler>(
+            "DevScheme", _ => { });
 }
 
 builder.Services.AddAuthorization(options =>
@@ -92,7 +93,7 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? new[] { "http://localhost:3000" })
+                ?? new[] { "http://localhost:3000", "http://localhost:5173" })
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -104,14 +105,59 @@ builder.Services.AddCors(options =>
 // builder.Services.AddScoped<ISyncService, SyncService>();
 
 // Repositories
+builder.Services.AddScoped<IConnectionRepository, ConnectionRepository>();
+builder.Services.AddScoped<IConnectionCredentialRepository, ConnectionCredentialRepository>();
+builder.Services.AddScoped<ISyncRunRepository, SyncRunRepository>();
 builder.Services.AddScoped<IReferenceDataRepository, ReferenceDataRepository>();
 builder.Services.AddScoped<INotificationConfigRepository, NotificationConfigRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
-// Services
+// HTTP client for API connector
+builder.Services.AddHttpClient("ApiConnector", client =>
+{
+    client.DefaultRequestHeaders.Add("User-Agent", "ObiBridge/1.0");
+});
+builder.Services.AddHttpClient("OAuth2");
+
+// Core services
+builder.Services.AddScoped<IApiConnectorService, ApiConnectorService>();
+builder.Services.AddScoped<ICredentialVaultService, CredentialVaultService>();
+builder.Services.AddScoped<ITransformEngineService, TransformEngineService>();
+builder.Services.AddScoped<ICsvGeneratorService, CsvGeneratorService>();
+builder.Services.AddScoped<ISftpDeliveryService, SftpDeliveryService>();
+builder.Services.AddScoped<ISyncOrchestratorService, SyncOrchestratorService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IValidationEngineService, ValidationEngineService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// Azure Key Vault — conditional on config
+var keyVaultUri = builder.Configuration["KeyVault:Uri"];
+if (!string.IsNullOrEmpty(keyVaultUri))
+{
+    builder.Services.AddSingleton<IKeyVaultClient>(
+        new API.Infrastructure.KeyVaultClientWrapper(
+            new Azure.Security.KeyVault.Secrets.SecretClient(
+                new Uri(keyVaultUri), new Azure.Identity.DefaultAzureCredential())));
+}
+else
+{
+    // Development: no-op Key Vault client
+    builder.Services.AddSingleton<IKeyVaultClient, API.Infrastructure.DevKeyVaultClient>();
+}
+
+// Scheduler — Hangfire in production, no-op in development
+if (!string.IsNullOrEmpty(connectionString))
+{
+    // Hangfire needs SQL Server — register when connection string is available
+    // builder.Services.AddHangfire(config => config.UseSqlServerStorage(connectionString));
+    // builder.Services.AddHangfireServer();
+    // builder.Services.AddScoped<ISchedulerService, SchedulerService>();
+    builder.Services.AddScoped<ISchedulerService, API.Infrastructure.DevSchedulerService>();
+}
+else
+{
+    builder.Services.AddScoped<ISchedulerService, API.Infrastructure.DevSchedulerService>();
+}
 
 // ---------------------------------------------------------------------------
 // Rate Limiting
