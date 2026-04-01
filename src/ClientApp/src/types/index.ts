@@ -14,6 +14,10 @@ export interface Connection {
   createdBy: string
   createdAt: string
   updatedAt: string
+  lastSyncAt?: string
+  lastSyncRecordCount?: number
+  nextSyncAt?: string
+  successRate?: number
 }
 
 export enum ConnectionStatus {
@@ -70,4 +74,12 @@ export interface ApiResponse<T> {
   data?: T
   message?: string
   errors?: string[]
+}
+
+export type BadgeStatus = ConnectionStatus | SyncRunStatus
+
+export interface DataTableColumn {
+  key: string
+  label: string
+  sortable?: boolean
 }
