@@ -83,3 +83,19 @@ export interface DataTableColumn {
   label: string
   sortable?: boolean
 }
+
+export interface ReferenceDataItem {
+  id: string
+  assetId: string
+  assetName: string
+  submeterCode: string
+  utilityType: string
+  createdAt: string
+}
+
+export interface UserProfile {
+  userId: string
+  email: string
+  displayName: string
+  role: string
+}

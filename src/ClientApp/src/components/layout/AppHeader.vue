@@ -14,6 +14,10 @@ const pageTitle = computed(() => {
       return 'Connection Details'
     case 'wizard':
       return 'New Connection'
+    case 'settings':
+      return 'Settings'
+    case 'analytics':
+      return 'Analytics'
     default:
       return 'Obi Bridge'
   }
