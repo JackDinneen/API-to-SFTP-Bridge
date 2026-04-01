@@ -11,7 +11,11 @@ namespace IntegrationTests.Controllers;
 public class ConnectionsControllerTests
 {
     private readonly CustomWebApplicationFactory _factory;
-    private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
 
     public ConnectionsControllerTests(CustomWebApplicationFactory factory)
     {
