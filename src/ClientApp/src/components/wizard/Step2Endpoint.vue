@@ -54,6 +54,7 @@ async function fetchSample() {
       endpointPath: config.value.path,
       authType: wizard.wizardData.apiConfig.authType,
       credentials: buildCredentials(),
+      reportingLagDays: wizard.wizardData.outputConfig.reportingLagDays,
     })
     if (result.success && result.data) {
       config.value.sampleResponse = result.data

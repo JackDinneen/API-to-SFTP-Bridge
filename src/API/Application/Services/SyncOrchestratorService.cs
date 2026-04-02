@@ -69,10 +69,11 @@ public class SyncOrchestratorService : ISyncOrchestratorService
         {
             // Step 1: Fetch data from API
             var authHeaders = await _credentialVault.BuildAuthHeadersAsync(connectionId, connection.AuthType, cancellationToken);
+            var endpointPath = ReplaceDatePlaceholders(connection.EndpointPath, connection.ReportingLagDays);
             var apiUrl = connection.BaseUrl.TrimEnd('/');
-            if (!string.IsNullOrEmpty(connection.EndpointPath))
+            if (!string.IsNullOrEmpty(endpointPath))
             {
-                apiUrl = $"{apiUrl}/{connection.EndpointPath.TrimStart('/')}";
+                apiUrl = $"{apiUrl}/{endpointPath.TrimStart('/')}";
             }
             var apiConfig = new ApiRequestConfig
             {
@@ -164,5 +165,25 @@ public class SyncOrchestratorService : ISyncOrchestratorService
             ErrorMessage = errorMessage,
             ErrorStep = errorStep
         };
+    }
+
+    /// <summary>
+    /// Replaces date placeholders in the endpoint path with calculated values
+    /// based on the reporting lag. Supported placeholders:
+    /// {start_date} — first day of target month (yyyy-MM-dd)
+    /// {end_date}   — last day of target month (yyyy-MM-dd)
+    /// </summary>
+    internal static string? ReplaceDatePlaceholders(string? endpointPath, int reportingLagDays)
+    {
+        if (string.IsNullOrEmpty(endpointPath) || !endpointPath.Contains('{'))
+            return endpointPath;
+
+        var targetDate = DateTime.UtcNow.AddDays(-reportingLagDays);
+        var startOfMonth = new DateTime(targetDate.Year, targetDate.Month, 1);
+        var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+
+        return endpointPath
+            .Replace("{start_date}", startOfMonth.ToString("yyyy-MM-dd"))
+            .Replace("{end_date}", endOfMonth.ToString("yyyy-MM-dd"));
     }
 }

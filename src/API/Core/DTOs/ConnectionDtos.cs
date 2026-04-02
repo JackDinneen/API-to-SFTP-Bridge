@@ -145,4 +145,5 @@ public class FetchSampleRequest
     public string EndpointPath { get; set; } = string.Empty;
     public AuthType AuthType { get; set; }
     public CreateCredentialDto? Credentials { get; set; }
+    public int ReportingLagDays { get; set; } = 30;
 }

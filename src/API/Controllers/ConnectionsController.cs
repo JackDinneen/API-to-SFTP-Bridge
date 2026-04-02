@@ -1,4 +1,5 @@
 using API.Application.Auth;
+using API.Application.Services;
 using API.Core.DTOs;
 using API.Core.Entities;
 using API.Core.Interfaces;
@@ -393,14 +394,29 @@ public class ConnectionsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var headers = BuildHeadersFromCredentials(request.AuthType, request.Credentials);
-        var result = await _apiConnectorService.TestConnectionAsync(request.BaseUrl, headers, cancellationToken);
-
-        if (result)
+        var apiConfig = new ApiRequestConfig
         {
-            return Ok(ApiResponse<bool>.Ok(true, "API connection successful"));
+            Url = request.BaseUrl,
+            Headers = headers,
+            MaxRetries = 0,
+            TimeoutSeconds = 10
+        };
+
+        var response = await _apiConnectorService.SendRequestAsync(apiConfig, cancellationToken);
+
+        // Any HTTP response means the server is reachable
+        if (response.StatusCode == 0)
+        {
+            return Ok(ApiResponse<bool>.Fail($"Cannot reach server: {response.ErrorMessage ?? "Connection failed"}"));
         }
 
-        return Ok(ApiResponse<bool>.Fail("API connection failed. Check your base URL and credentials."));
+        if (response.StatusCode == 401 || response.StatusCode == 403)
+        {
+            return Ok(ApiResponse<bool>.Fail("Authentication failed. Check your credentials."));
+        }
+
+        // Any other response (200, 404, etc.) means connectivity + auth are working
+        return Ok(ApiResponse<bool>.Ok(true, "API connection successful"));
     }
 
     [HttpPost("preview/fetch-sample")]
@@ -412,10 +428,14 @@ public class ConnectionsController : ControllerBase
     {
         var headers = BuildHeadersFromCredentials(request.AuthType, request.Credentials);
 
+        // Replace date placeholders (e.g., {start_date}, {end_date}) so sample fetches work
+        var endpointPath = SyncOrchestratorService.ReplaceDatePlaceholders(
+            request.EndpointPath, request.ReportingLagDays);
+
         var apiUrl = request.BaseUrl.TrimEnd('/');
-        if (!string.IsNullOrEmpty(request.EndpointPath))
+        if (!string.IsNullOrEmpty(endpointPath))
         {
-            apiUrl = $"{apiUrl}/{request.EndpointPath.TrimStart('/')}";
+            apiUrl = $"{apiUrl}/{endpointPath.TrimStart('/')}";
         }
 
         var apiConfig = new ApiRequestConfig
