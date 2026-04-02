@@ -19,6 +19,7 @@ const AUTO_DETECT_PATTERNS: Record<string, RegExp[]> = {
     /utility/i,
     /energy_type/i,
     /resource_type/i,
+    /meter_type/i,
   ],
   Year: [/year/i],
   Month: [/month/i],
@@ -31,7 +32,7 @@ function extractFieldPaths(obj: unknown, prefix = ''): string[] {
     for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
       const path = prefix ? `${prefix}.${key}` : key
       if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
-        paths.push(...extractFieldPaths(val[0], `${path}[0]`))
+        paths.push(...extractFieldPaths(val[0], `${path}[*]`))
       } else if (val && typeof val === 'object' && !Array.isArray(val)) {
         paths.push(...extractFieldPaths(val, path))
       } else {
