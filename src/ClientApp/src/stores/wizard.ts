@@ -273,11 +273,6 @@ export const useWizardStore = defineStore('wizard', () => {
     const result = await api.postAsync<Connection>('/connections', payload)
     if (result.success && result.data) {
       createdConnectionId.value = result.data.id
-      // Clear sensitive credential data from reactive store
-      d.apiConfig.apiKey = ''
-      d.apiConfig.basicPassword = ''
-      d.apiConfig.oauthClientSecret = ''
-      d.outputConfig.sftpPassword = ''
       return true
     }
     return false
