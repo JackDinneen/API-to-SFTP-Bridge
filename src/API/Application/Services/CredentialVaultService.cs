@@ -108,9 +108,18 @@ public class CredentialVaultService : ICredentialVaultService
         {
             case AuthType.ApiKey:
                 var apiKey = await GetCredentialAsync(connectionId, "api-key", cancellationToken);
+                var apiKeyHeader = await GetCredentialAsync(connectionId, "api-key-header", cancellationToken);
                 if (apiKey != null)
                 {
-                    headers["Authorization"] = $"Bearer {apiKey}";
+                    var headerName = !string.IsNullOrEmpty(apiKeyHeader) ? apiKeyHeader : "Authorization";
+                    if (headerName.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
+                    {
+                        headers["Authorization"] = $"Bearer {apiKey}";
+                    }
+                    else
+                    {
+                        headers[headerName] = apiKey;
+                    }
                 }
                 break;
 

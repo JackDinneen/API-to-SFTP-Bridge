@@ -168,11 +168,28 @@ public class CredentialVaultServiceTests
         var apiKeyValue = "test-api-key-12345";
 
         SetupGetSecret($"obi-bridge-{connectionId}-api-key", apiKeyValue);
+        SetupGetSecretNotFound($"obi-bridge-{connectionId}-api-key-header");
 
         var result = await _service.BuildAuthHeadersAsync(connectionId, AuthType.ApiKey);
 
         result.Headers.Should().ContainKey("Authorization");
         result.Headers["Authorization"].Should().Be($"Bearer {apiKeyValue}");
+    }
+
+    [Fact]
+    public async Task BuildAuthHeadersAsync_ApiKey_UsesCustomHeader_WhenStored()
+    {
+        var connectionId = Guid.NewGuid();
+        var apiKeyValue = "test-api-key-12345";
+
+        SetupGetSecret($"obi-bridge-{connectionId}-api-key", apiKeyValue);
+        SetupGetSecret($"obi-bridge-{connectionId}-api-key-header", "X-Api-Key");
+
+        var result = await _service.BuildAuthHeadersAsync(connectionId, AuthType.ApiKey);
+
+        result.Headers.Should().ContainKey("X-Api-Key");
+        result.Headers["X-Api-Key"].Should().Be(apiKeyValue);
+        result.Headers.Should().NotContainKey("Authorization");
     }
 
     // ---------------------------------------------------------------
