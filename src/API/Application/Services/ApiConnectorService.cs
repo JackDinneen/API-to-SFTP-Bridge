@@ -36,7 +36,7 @@ public class ApiConnectorService : IApiConnectorService
             attempt++;
             try
             {
-                using var client = _httpClientFactory.CreateClient();
+                using var client = _httpClientFactory.CreateClient("ApiConnector");
                 client.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
 
                 var url = BuildUrl(config.Url, config.QueryParameters);

@@ -131,3 +131,18 @@ public class TestConnectionRequest
 {
     // Intentionally empty; connection details come from the stored connection
 }
+
+public class TestConnectionPreviewRequest
+{
+    public string BaseUrl { get; set; } = string.Empty;
+    public AuthType AuthType { get; set; }
+    public CreateCredentialDto? Credentials { get; set; }
+}
+
+public class FetchSampleRequest
+{
+    public string BaseUrl { get; set; } = string.Empty;
+    public string EndpointPath { get; set; } = string.Empty;
+    public AuthType AuthType { get; set; }
+    public CreateCredentialDto? Credentials { get; set; }
+}

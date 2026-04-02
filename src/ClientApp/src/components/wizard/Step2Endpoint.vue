@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useWizardStore, type EndpointConfig } from '@/stores/wizard'
+import { AuthType } from '@/types'
+import { useApi } from '@/composables/useApi'
 import JsonTreeViewer from '@/components/shared/JsonTreeViewer.vue'
 
 const wizard = useWizardStore()
+const api = useApi()
 const config = ref<EndpointConfig>({ ...wizard.wizardData.endpointConfig })
 const fetchStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
+const fetchError = ref('')
 const selectedPath = ref('')
 
 const paginationOptions = [
@@ -15,32 +19,52 @@ const paginationOptions = [
   { value: 'page', label: 'Page Number' },
 ] as const
 
+function buildCredentials() {
+  const a = wizard.wizardData.apiConfig
+  const creds: Record<string, unknown> = {}
+  switch (a.authType) {
+    case AuthType.ApiKey:
+      creds.apiKey = a.apiKey
+      creds.apiKeyHeader = a.apiKeyHeader
+      break
+    case AuthType.BasicAuth:
+      creds.basicUsername = a.basicUsername
+      creds.basicPassword = a.basicPassword
+      break
+    case AuthType.OAuth2ClientCredentials:
+      creds.oAuthClientId = a.oauthClientId
+      creds.oAuthClientSecret = a.oauthClientSecret
+      creds.oAuthTokenUrl = a.oauthTokenUrl
+      break
+    case AuthType.CustomHeaders:
+      creds.customHeaders = a.customHeaders
+        .filter((h) => h.key.trim())
+        .map((h) => ({ key: h.key, value: h.value }))
+      break
+  }
+  return creds
+}
+
 async function fetchSample() {
   fetchStatus.value = 'loading'
+  fetchError.value = ''
   try {
-    // TODO: Replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    config.value.sampleResponse = {
-      data: {
-        meters: [
-          {
-            meter_id: 'MTR-001',
-            building_code: 'BLD-100',
-            building_name: 'Main Office',
-            utility_type: 'electricity',
-            readings: [
-              { year: 2025, month: 1, kwh: 15230.5 },
-              { year: 2025, month: 2, kwh: 14890.2 },
-            ],
-          },
-        ],
-        total: 42,
-        page: 1,
-      },
+    const result = await api.postAsync<unknown>('/connections/fetch-sample', {
+      baseUrl: wizard.wizardData.apiConfig.baseUrl,
+      endpointPath: config.value.path,
+      authType: wizard.wizardData.apiConfig.authType,
+      credentials: buildCredentials(),
+    })
+    if (result.success && result.data) {
+      config.value.sampleResponse = result.data
+      fetchStatus.value = 'success'
+    } else {
+      fetchStatus.value = 'error'
+      fetchError.value = result.message ?? 'Failed to fetch sample data'
     }
-    fetchStatus.value = 'success'
   } catch {
     fetchStatus.value = 'error'
+    fetchError.value = 'Network error fetching sample'
   }
 }
 
@@ -89,6 +113,12 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
       >
         {{ fetchStatus === 'loading' ? 'Fetching...' : 'Fetch Sample' }}
       </button>
+      <span
+        v-if="fetchStatus === 'error'"
+        class="ml-3 text-sm text-red-600 font-medium"
+      >
+        {{ fetchError }}
+      </span>
     </div>
 
     <!-- JSON Tree Viewer -->

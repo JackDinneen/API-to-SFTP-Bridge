@@ -2,8 +2,10 @@
 import { ref, watch, computed } from 'vue'
 import { useWizardStore, type ApiConfig } from '@/stores/wizard'
 import { AuthType } from '@/types'
+import { useApi } from '@/composables/useApi'
 
 const wizard = useWizardStore()
+const api = useApi()
 const config = ref<ApiConfig>({ ...wizard.wizardData.apiConfig })
 const testStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const testMessage = ref('')
@@ -23,18 +25,56 @@ function removeHeader(index: number) {
   config.value.customHeaders.splice(index, 1)
 }
 
+function buildCredentials() {
+  const c = config.value
+  const creds: Record<string, unknown> = {}
+  switch (c.authType) {
+    case AuthType.ApiKey:
+      creds.apiKey = c.apiKey
+      creds.apiKeyHeader = c.apiKeyHeader
+      break
+    case AuthType.BasicAuth:
+      creds.basicUsername = c.basicUsername
+      creds.basicPassword = c.basicPassword
+      break
+    case AuthType.OAuth2ClientCredentials:
+      creds.oAuthClientId = c.oauthClientId
+      creds.oAuthClientSecret = c.oauthClientSecret
+      creds.oAuthTokenUrl = c.oauthTokenUrl
+      break
+    case AuthType.CustomHeaders:
+      creds.customHeaders = c.customHeaders
+        .filter((h) => h.key.trim())
+        .map((h) => ({ key: h.key, value: h.value }))
+      break
+  }
+  return creds
+}
+
 async function testConnection() {
   testStatus.value = 'loading'
   testMessage.value = ''
   try {
-    // TODO: Replace with actual API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    testStatus.value = 'success'
-    testMessage.value = 'Connection successful'
-    config.value.connectionTested = true
+    const result = await api.postAsync<boolean>(
+      '/connections/test-connection-preview',
+      {
+        baseUrl: config.value.baseUrl,
+        authType: config.value.authType,
+        credentials: buildCredentials(),
+      },
+    )
+    if (result.success) {
+      testStatus.value = 'success'
+      testMessage.value = 'Connection successful'
+      config.value.connectionTested = true
+    } else {
+      testStatus.value = 'error'
+      testMessage.value = result.message ?? 'Connection failed'
+      config.value.connectionTested = false
+    }
   } catch {
     testStatus.value = 'error'
-    testMessage.value = 'Connection failed'
+    testMessage.value = 'Connection failed — network error'
     config.value.connectionTested = false
   }
 }

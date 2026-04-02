@@ -69,16 +69,24 @@ public class SyncOrchestratorService : ISyncOrchestratorService
         {
             // Step 1: Fetch data from API
             var authHeaders = await _credentialVault.BuildAuthHeadersAsync(connectionId, connection.AuthType, cancellationToken);
+            var apiUrl = connection.BaseUrl.TrimEnd('/');
+            if (!string.IsNullOrEmpty(connection.EndpointPath))
+            {
+                apiUrl = $"{apiUrl}/{connection.EndpointPath.TrimStart('/')}";
+            }
             var apiConfig = new ApiRequestConfig
             {
-                Url = connection.BaseUrl + (connection.EndpointPath ?? ""),
+                Url = apiUrl,
                 Headers = authHeaders.Headers
             };
 
             var apiResponse = await _apiConnector.SendRequestAsync(apiConfig, cancellationToken);
             if (!apiResponse.IsSuccess || string.IsNullOrEmpty(apiResponse.Body))
             {
-                return await FailSyncAsync(syncRun, "fetch", apiResponse.ErrorMessage ?? "API request failed", cancellationToken);
+                var errorDetail = !string.IsNullOrEmpty(apiResponse.Body)
+                    ? $"External API returned {apiResponse.StatusCode}: {apiResponse.Body}"
+                    : $"External API returned {apiResponse.StatusCode}: {apiResponse.ErrorMessage ?? "No response body"}";
+                return await FailSyncAsync(syncRun, "fetch", errorDetail, cancellationToken);
             }
 
             // Step 2: Transform data

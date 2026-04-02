@@ -385,6 +385,111 @@ public class ConnectionsController : ControllerBase
         return Ok(ApiResponse<bool>.Fail("API connection failed"));
     }
 
+    [HttpPost("test-connection-preview")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrOperator)]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<bool>>> TestConnectionPreview(
+        [FromBody] TestConnectionPreviewRequest request,
+        CancellationToken cancellationToken)
+    {
+        var headers = BuildHeadersFromCredentials(request.AuthType, request.Credentials);
+        var result = await _apiConnectorService.TestConnectionAsync(request.BaseUrl, headers, cancellationToken);
+
+        if (result)
+        {
+            return Ok(ApiResponse<bool>.Ok(true, "API connection successful"));
+        }
+
+        return Ok(ApiResponse<bool>.Fail("API connection failed. Check your base URL and credentials."));
+    }
+
+    [HttpPost("fetch-sample")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrOperator)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<object>>> FetchSample(
+        [FromBody] FetchSampleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var headers = BuildHeadersFromCredentials(request.AuthType, request.Credentials);
+
+        var apiUrl = request.BaseUrl.TrimEnd('/');
+        if (!string.IsNullOrEmpty(request.EndpointPath))
+        {
+            apiUrl = $"{apiUrl}/{request.EndpointPath.TrimStart('/')}";
+        }
+
+        var apiConfig = new ApiRequestConfig
+        {
+            Url = apiUrl,
+            Headers = headers,
+            MaxRetries = 0,
+            TimeoutSeconds = 15
+        };
+
+        var response = await _apiConnectorService.SendRequestAsync(apiConfig, cancellationToken);
+
+        if (!response.IsSuccess || string.IsNullOrEmpty(response.Body))
+        {
+            return Ok(ApiResponse<object>.Fail(
+                $"API returned status {response.StatusCode}: {response.ErrorMessage ?? "No response body"}"));
+        }
+
+        try
+        {
+            var jsonData = System.Text.Json.JsonSerializer.Deserialize<object>(response.Body);
+            return Ok(ApiResponse<object>.Ok(jsonData!));
+        }
+        catch
+        {
+            return Ok(ApiResponse<object>.Fail("API returned non-JSON response"));
+        }
+    }
+
+    private static Dictionary<string, string> BuildHeadersFromCredentials(AuthType authType, CreateCredentialDto? creds)
+    {
+        var headers = new Dictionary<string, string>();
+        if (creds == null) return headers;
+
+        switch (authType)
+        {
+            case AuthType.ApiKey:
+                if (!string.IsNullOrEmpty(creds.ApiKey))
+                {
+                    var headerName = !string.IsNullOrEmpty(creds.ApiKeyHeader) ? creds.ApiKeyHeader : "Authorization";
+                    if (headerName.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
+                    {
+                        headers["Authorization"] = $"Bearer {creds.ApiKey}";
+                    }
+                    else
+                    {
+                        headers[headerName] = creds.ApiKey;
+                    }
+                }
+                break;
+
+            case AuthType.BasicAuth:
+                if (!string.IsNullOrEmpty(creds.BasicUsername) && !string.IsNullOrEmpty(creds.BasicPassword))
+                {
+                    var encoded = Convert.ToBase64String(
+                        System.Text.Encoding.UTF8.GetBytes($"{creds.BasicUsername}:{creds.BasicPassword}"));
+                    headers["Authorization"] = $"Basic {encoded}";
+                }
+                break;
+
+            case AuthType.CustomHeaders:
+                if (creds.CustomHeaders != null)
+                {
+                    foreach (var header in creds.CustomHeaders.Where(h => !string.IsNullOrEmpty(h.Key)))
+                    {
+                        headers[header.Key] = header.Value;
+                    }
+                }
+                break;
+        }
+
+        return headers;
+    }
+
     private static ConnectionDto MapToDto(Connection connection)
     {
         return new ConnectionDto
