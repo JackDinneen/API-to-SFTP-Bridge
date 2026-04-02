@@ -45,7 +45,27 @@ public class SyncRunRepository : ISyncRunRepository
 
     public async Task<SyncRun> UpdateAsync(SyncRun syncRun, CancellationToken cancellationToken = default)
     {
-        _context.SyncRuns.Update(syncRun);
+        // Attach the sync run if not already tracked
+        var entry = _context.Entry(syncRun);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.SyncRuns.Attach(syncRun);
+            entry.State = EntityState.Modified;
+        }
+
+        // Ensure new child records are marked as Added (not Modified)
+        foreach (var record in syncRun.Records)
+        {
+            var recordEntry = _context.Entry(record);
+            if (recordEntry.State == EntityState.Detached || recordEntry.State == EntityState.Modified)
+            {
+                if (record.Id == Guid.Empty || !await _context.Set<SyncRunRecord>().AnyAsync(r => r.Id == record.Id, cancellationToken))
+                {
+                    recordEntry.State = EntityState.Added;
+                }
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
         return syncRun;
     }
