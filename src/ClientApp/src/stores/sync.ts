@@ -16,7 +16,7 @@ export const useSyncStore = defineStore('sync', () => {
     error.value = null
     try {
       const result = await api.getAsync<SyncRun[]>(
-        `/connections/${connectionId}/sync-runs`,
+        `/sync/${connectionId}/history`,
       )
       if (result.success && result.data) {
         syncHistory.value = result.data
@@ -34,7 +34,7 @@ export const useSyncStore = defineStore('sync', () => {
     error.value = null
     try {
       const result = await api.getAsync<SyncRun>(
-        `/connections/${connectionId}/sync-runs/latest`,
+        `/sync/${connectionId}/latest`,
       )
       if (result.success && result.data) {
         latestSync.value = result.data
