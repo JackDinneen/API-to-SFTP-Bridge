@@ -102,6 +102,29 @@ public class SyncOrchestratorService : ISyncOrchestratorService
                 return await FailSyncAsync(syncRun, "transform", ex.Message, cancellationToken);
             }
 
+            // Step 2b: Save individual records for preview
+            foreach (var row in transformedRows)
+            {
+                int.TryParse(row.GetValueOrDefault("Year"), out var year);
+                int.TryParse(row.GetValueOrDefault("Month"), out var month);
+                decimal.TryParse(row.GetValueOrDefault("Value"),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var value);
+
+                syncRun.Records.Add(new SyncRunRecord
+                {
+                    SyncRunId = syncRun.Id,
+                    AssetId = row.GetValueOrDefault("Asset ID"),
+                    AssetName = row.GetValueOrDefault("Asset name"),
+                    SubmeterCode = row.GetValueOrDefault("Submeter Code"),
+                    UtilityType = row.GetValueOrDefault("Utility Type"),
+                    Year = year != 0 ? year : null,
+                    Month = month != 0 ? month : null,
+                    Value = value != 0 ? value : null,
+                    IsValid = true
+                });
+            }
+
             // Step 3: Generate CSV
             var (csvBytes, _) = _csvGenerator.GenerateCsv(transformedRows);
             var fileName = _csvGenerator.GenerateFileName(connection.ClientName, connection.PlatformName);
