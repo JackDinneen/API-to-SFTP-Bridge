@@ -89,6 +89,7 @@ watch(transformType, (v) => emit('update:modelTransformType', v))
 // Emit config with correct backend key names
 watch(
   [
+    transformType,
     staticValue,
     dateOutputField,
     fromUnit,
