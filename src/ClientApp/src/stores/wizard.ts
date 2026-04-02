@@ -26,6 +26,9 @@ export interface EndpointConfig {
   offsetParam: string
   cursorParam: string
   pageParam: string
+  iterationEnabled: boolean
+  iterationEndpointPath: string
+  iterationJsonPath: string
 }
 
 export interface FieldMapping {
@@ -97,6 +100,9 @@ function createDefaultWizardData(): WizardData {
       offsetParam: 'offset',
       cursorParam: 'cursor',
       pageParam: 'page',
+      iterationEnabled: false,
+      iterationEndpointPath: '',
+      iterationJsonPath: '',
     },
     mappings: [],
     aggregation: {
@@ -265,6 +271,12 @@ export const useWizardStore = defineStore('wizard', () => {
         d.endpointConfig.paginationStrategy !== 'none'
           ? d.endpointConfig.paginationStrategy
           : null,
+      iterationEndpointPath: d.endpointConfig.iterationEnabled
+        ? d.endpointConfig.iterationEndpointPath || null
+        : null,
+      iterationJsonPath: d.endpointConfig.iterationEnabled
+        ? d.endpointConfig.iterationJsonPath || null
+        : null,
       activate,
       mappings,
       credentials,

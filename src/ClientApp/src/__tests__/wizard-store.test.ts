@@ -42,6 +42,9 @@ describe('useWizardStore - submitWizard', () => {
       offsetParam: 'offset',
       cursorParam: 'cursor',
       pageParam: 'page',
+      iterationEnabled: false,
+      iterationEndpointPath: '',
+      iterationJsonPath: '',
     }
     store.wizardData.mappings = [
       {

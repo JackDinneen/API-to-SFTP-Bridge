@@ -19,6 +19,8 @@ public class Connection : BaseEntity
     public string? PaginationStrategy { get; set; }
     public string? PaginationConfig { get; set; } // JSON
     public string? ResponseSampleJson { get; set; }
+    public string? IterationEndpointPath { get; set; }
+    public string? IterationJsonPath { get; set; }
 
     // Foreign keys
     public Guid CreatedById { get; set; }

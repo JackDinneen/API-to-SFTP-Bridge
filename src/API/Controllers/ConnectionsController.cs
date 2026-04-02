@@ -108,6 +108,8 @@ public class ConnectionsController : ControllerBase
             EndpointPath = request.EndpointPath,
             PaginationStrategy = request.PaginationStrategy,
             PaginationConfig = request.PaginationConfig,
+            IterationEndpointPath = request.IterationEndpointPath,
+            IterationJsonPath = request.IterationJsonPath,
             CreatedById = userId
         };
 
@@ -301,6 +303,8 @@ public class ConnectionsController : ControllerBase
         connection.EndpointPath = request.EndpointPath;
         connection.PaginationStrategy = request.PaginationStrategy;
         connection.PaginationConfig = request.PaginationConfig;
+        connection.IterationEndpointPath = request.IterationEndpointPath;
+        connection.IterationJsonPath = request.IterationJsonPath;
 
         await _connectionRepository.UpdateAsync(connection, cancellationToken);
 
@@ -528,6 +532,8 @@ public class ConnectionsController : ControllerBase
             ReportingLagDays = connection.ReportingLagDays,
             EndpointPath = connection.EndpointPath,
             PaginationStrategy = connection.PaginationStrategy,
+            IterationEndpointPath = connection.IterationEndpointPath,
+            IterationJsonPath = connection.IterationJsonPath,
             CreatedAt = connection.CreatedAt,
             UpdatedAt = connection.UpdatedAt
         };

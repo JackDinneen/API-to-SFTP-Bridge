@@ -69,6 +69,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SftpPath).HasMaxLength(1024);
             entity.Property(e => e.EndpointPath).HasMaxLength(2048);
             entity.Property(e => e.PaginationStrategy).HasMaxLength(128);
+            entity.Property(e => e.IterationEndpointPath).HasMaxLength(2048);
+            entity.Property(e => e.IterationJsonPath).HasMaxLength(1024);
 
             entity.HasIndex(e => e.CreatedById);
             entity.HasIndex(e => e.Status);

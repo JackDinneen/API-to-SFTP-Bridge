@@ -73,9 +73,16 @@ function onFieldSelect(path: string) {
   selectedPath.value = path
 }
 
-const isValid = computed(
-  () => !!config.value.path.trim() && config.value.sampleResponse !== null,
-)
+const isValid = computed(() => {
+  if (!config.value.path.trim() || config.value.sampleResponse === null) return false
+  if (config.value.iterationEnabled) {
+    return (
+      !!config.value.iterationEndpointPath.trim() &&
+      !!config.value.iterationJsonPath.trim()
+    )
+  }
+  return true
+})
 
 watch(
   config,
@@ -100,7 +107,7 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
       <input
         v-model="config.path"
         type="text"
-        placeholder="/v1/buildings/{id}/consumption"
+        :placeholder="config.iterationEnabled ? '/v1/buildings/{iterator}/consumption' : '/v1/buildings/BLD-001/consumption'"
         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </div>
@@ -133,6 +140,75 @@ watch(isValid, (v) => wizard.setStepValid(2, v), { immediate: true })
         Selected:
         <code class="bg-blue-50 px-1 py-0.5 rounded">{{ selectedPath }}</code>
       </p>
+    </div>
+
+    <!-- Multi-Endpoint Iteration -->
+    <div class="border-t border-gray-200 pt-4">
+      <div class="flex items-center gap-3 mb-3">
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input
+            v-model="config.iterationEnabled"
+            type="checkbox"
+            class="sr-only peer"
+          />
+          <div
+            class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
+          ></div>
+        </label>
+        <span class="text-sm font-medium text-gray-700"
+          >Fetch from multiple endpoints</span
+        >
+      </div>
+      <p class="text-xs text-gray-500 mb-3">
+        Enable this to call a discovery endpoint first, then iterate over each
+        identifier (e.g., building code) to fetch data from the data endpoint.
+      </p>
+
+      <div v-if="config.iterationEnabled" class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Discovery Endpoint Path</label
+          >
+          <input
+            v-model="config.iterationEndpointPath"
+            type="text"
+            placeholder="/v1/buildings"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p class="mt-1 text-xs text-gray-400">
+            The endpoint that returns a list of identifiers (e.g., all building
+            codes).
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1"
+            >Identifier JSON Path</label
+          >
+          <input
+            v-model="config.iterationJsonPath"
+            type="text"
+            placeholder="data[*].building_code"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p class="mt-1 text-xs text-gray-400">
+            JSON path to extract identifiers from the discovery response. Use
+            [*] for array wildcards.
+          </p>
+        </div>
+
+        <div
+          class="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800"
+        >
+          <strong>Tip:</strong> Use
+          <code class="bg-blue-100 px-1 rounded">{iterator}</code> in your
+          Endpoint Path above to substitute each discovered identifier. For
+          example:
+          <code class="bg-blue-100 px-1 rounded"
+            >/v1/buildings/{iterator}/consumption?start_date={start_date}&amp;end_date={end_date}</code
+          >
+        </div>
+      </div>
     </div>
 
     <!-- Pagination -->

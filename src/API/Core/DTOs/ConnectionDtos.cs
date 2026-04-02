@@ -17,6 +17,8 @@ public class CreateConnectionRequest
     public string? EndpointPath { get; set; }
     public string? PaginationStrategy { get; set; }
     public string? PaginationConfig { get; set; }
+    public string? IterationEndpointPath { get; set; }
+    public string? IterationJsonPath { get; set; }
     public bool Activate { get; set; }
     public List<CreateMappingDto> Mappings { get; set; } = new();
     public CreateCredentialDto? Credentials { get; set; }
@@ -67,6 +69,8 @@ public class UpdateConnectionRequest
     public string? EndpointPath { get; set; }
     public string? PaginationStrategy { get; set; }
     public string? PaginationConfig { get; set; }
+    public string? IterationEndpointPath { get; set; }
+    public string? IterationJsonPath { get; set; }
 }
 
 public class ConnectionDto
@@ -85,6 +89,8 @@ public class ConnectionDto
     public int ReportingLagDays { get; set; }
     public string? EndpointPath { get; set; }
     public string? PaginationStrategy { get; set; }
+    public string? IterationEndpointPath { get; set; }
+    public string? IterationJsonPath { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? LastSyncAt { get; set; }
@@ -146,4 +152,6 @@ public class FetchSampleRequest
     public AuthType AuthType { get; set; }
     public CreateCredentialDto? Credentials { get; set; }
     public int ReportingLagDays { get; set; } = 30;
+    public string? IterationEndpointPath { get; set; }
+    public string? IterationJsonPath { get; set; }
 }

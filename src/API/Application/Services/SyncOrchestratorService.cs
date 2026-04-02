@@ -67,39 +67,48 @@ public class SyncOrchestratorService : ISyncOrchestratorService
 
         try
         {
-            // Step 1: Fetch data from API
             var authHeaders = await _credentialVault.BuildAuthHeadersAsync(connectionId, connection.AuthType, cancellationToken);
-            var endpointPath = ReplaceDatePlaceholders(connection.EndpointPath, connection.ReportingLagDays);
-            var apiUrl = connection.BaseUrl.TrimEnd('/');
-            if (!string.IsNullOrEmpty(endpointPath))
-            {
-                apiUrl = $"{apiUrl}/{endpointPath.TrimStart('/')}";
-            }
-            var apiConfig = new ApiRequestConfig
-            {
-                Url = apiUrl,
-                Headers = authHeaders.Headers
-            };
 
-            var apiResponse = await _apiConnector.SendRequestAsync(apiConfig, cancellationToken);
-            if (!apiResponse.IsSuccess || string.IsNullOrEmpty(apiResponse.Body))
-            {
-                var errorDetail = !string.IsNullOrEmpty(apiResponse.Body)
-                    ? $"External API returned {apiResponse.StatusCode}: {apiResponse.Body}"
-                    : $"External API returned {apiResponse.StatusCode}: {apiResponse.ErrorMessage ?? "No response body"}";
-                return await FailSyncAsync(syncRun, "fetch", errorDetail, cancellationToken);
-            }
-
-            // Step 2: Transform data
             List<Dictionary<string, string?>> transformedRows;
-            try
+
+            if (!string.IsNullOrEmpty(connection.IterationEndpointPath) && !string.IsNullOrEmpty(connection.IterationJsonPath))
             {
-                var jsonDoc = JsonDocument.Parse(apiResponse.Body);
-                transformedRows = _transformEngine.Transform(jsonDoc.RootElement, connection.Mappings.ToList());
+                // Multi-endpoint iteration: discover identifiers, then fetch data for each
+                var discoveryResult = await FetchIterationIdentifiersAsync(
+                    connection, authHeaders.Headers, cancellationToken);
+
+                if (!discoveryResult.Success)
+                {
+                    return await FailSyncAsync(syncRun, "discovery", discoveryResult.ErrorMessage!, cancellationToken);
+                }
+
+                _logger.LogInformation("Discovered {Count} identifiers for connection {ConnectionId}",
+                    discoveryResult.Identifiers.Count, connectionId);
+
+                transformedRows = new List<Dictionary<string, string?>>();
+                foreach (var identifier in discoveryResult.Identifiers)
+                {
+                    var iterResult = await FetchAndTransformForIdentifierAsync(
+                        connection, identifier, authHeaders.Headers, cancellationToken);
+
+                    if (!iterResult.Success)
+                    {
+                        return await FailSyncAsync(syncRun, "fetch",
+                            $"Failed for identifier '{identifier}': {iterResult.ErrorMessage}", cancellationToken);
+                    }
+
+                    transformedRows.AddRange(iterResult.Rows);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                return await FailSyncAsync(syncRun, "transform", ex.Message, cancellationToken);
+                // Single endpoint fetch (existing behaviour)
+                var singleResult = await FetchAndTransformSingleAsync(connection, authHeaders.Headers, cancellationToken);
+                if (!singleResult.Success)
+                {
+                    return await FailSyncAsync(syncRun, singleResult.ErrorStep!, singleResult.ErrorMessage!, cancellationToken);
+                }
+                transformedRows = singleResult.Rows;
             }
 
             // Step 2b: Save individual records for preview
@@ -188,6 +197,120 @@ public class SyncOrchestratorService : ISyncOrchestratorService
             ErrorMessage = errorMessage,
             ErrorStep = errorStep
         };
+    }
+
+    private async Task<(bool Success, List<string> Identifiers, string? ErrorMessage)> FetchIterationIdentifiersAsync(
+        Connection connection, Dictionary<string, string> headers, CancellationToken cancellationToken)
+    {
+        var discoveryPath = ReplaceDatePlaceholders(connection.IterationEndpointPath, connection.ReportingLagDays);
+        var discoveryUrl = connection.BaseUrl.TrimEnd('/');
+        if (!string.IsNullOrEmpty(discoveryPath))
+        {
+            discoveryUrl = $"{discoveryUrl}/{discoveryPath.TrimStart('/')}";
+        }
+
+        var apiConfig = new ApiRequestConfig
+        {
+            Url = discoveryUrl,
+            Headers = headers
+        };
+
+        var response = await _apiConnector.SendRequestAsync(apiConfig, cancellationToken);
+        if (!response.IsSuccess || string.IsNullOrEmpty(response.Body))
+        {
+            var errorDetail = !string.IsNullOrEmpty(response.Body)
+                ? $"Discovery endpoint returned {response.StatusCode}: {response.Body}"
+                : $"Discovery endpoint returned {response.StatusCode}: {response.ErrorMessage ?? "No response body"}";
+            return (false, new List<string>(), errorDetail);
+        }
+
+        try
+        {
+            var jsonDoc = JsonDocument.Parse(response.Body);
+            var values = _transformEngine.ExtractValues(jsonDoc.RootElement, connection.IterationJsonPath!);
+            var identifiers = values.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!).ToList();
+            return (true, identifiers, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, new List<string>(), $"Failed to extract identifiers: {ex.Message}");
+        }
+    }
+
+    private async Task<(bool Success, List<Dictionary<string, string?>> Rows, string? ErrorMessage, string? ErrorStep)> FetchAndTransformForIdentifierAsync(
+        Connection connection, string identifier, Dictionary<string, string> headers, CancellationToken cancellationToken)
+    {
+        var endpointPath = ReplaceDatePlaceholders(connection.EndpointPath, connection.ReportingLagDays);
+        endpointPath = endpointPath?.Replace("{iterator}", Uri.EscapeDataString(identifier));
+
+        var apiUrl = connection.BaseUrl.TrimEnd('/');
+        if (!string.IsNullOrEmpty(endpointPath))
+        {
+            apiUrl = $"{apiUrl}/{endpointPath.TrimStart('/')}";
+        }
+
+        var apiConfig = new ApiRequestConfig
+        {
+            Url = apiUrl,
+            Headers = headers
+        };
+
+        var response = await _apiConnector.SendRequestAsync(apiConfig, cancellationToken);
+        if (!response.IsSuccess || string.IsNullOrEmpty(response.Body))
+        {
+            var errorDetail = !string.IsNullOrEmpty(response.Body)
+                ? $"API returned {response.StatusCode}: {response.Body}"
+                : $"API returned {response.StatusCode}: {response.ErrorMessage ?? "No response body"}";
+            return (false, new List<Dictionary<string, string?>>(), errorDetail, "fetch");
+        }
+
+        try
+        {
+            var jsonDoc = JsonDocument.Parse(response.Body);
+            var rows = _transformEngine.Transform(jsonDoc.RootElement, connection.Mappings.ToList());
+            return (true, rows, null, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, new List<Dictionary<string, string?>>(), ex.Message, "transform");
+        }
+    }
+
+    private async Task<(bool Success, List<Dictionary<string, string?>> Rows, string? ErrorMessage, string? ErrorStep)> FetchAndTransformSingleAsync(
+        Connection connection, Dictionary<string, string> headers, CancellationToken cancellationToken)
+    {
+        var endpointPath = ReplaceDatePlaceholders(connection.EndpointPath, connection.ReportingLagDays);
+        var apiUrl = connection.BaseUrl.TrimEnd('/');
+        if (!string.IsNullOrEmpty(endpointPath))
+        {
+            apiUrl = $"{apiUrl}/{endpointPath.TrimStart('/')}";
+        }
+
+        var apiConfig = new ApiRequestConfig
+        {
+            Url = apiUrl,
+            Headers = headers
+        };
+
+        var response = await _apiConnector.SendRequestAsync(apiConfig, cancellationToken);
+        if (!response.IsSuccess || string.IsNullOrEmpty(response.Body))
+        {
+            var errorDetail = !string.IsNullOrEmpty(response.Body)
+                ? $"External API returned {response.StatusCode}: {response.Body}"
+                : $"External API returned {response.StatusCode}: {response.ErrorMessage ?? "No response body"}";
+            return (false, new List<Dictionary<string, string?>>(), errorDetail, "fetch");
+        }
+
+        try
+        {
+            var jsonDoc = JsonDocument.Parse(response.Body);
+            var rows = _transformEngine.Transform(jsonDoc.RootElement, connection.Mappings.ToList());
+            return (true, rows, null, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, new List<Dictionary<string, string?>>(), ex.Message, "transform");
+        }
     }
 
     /// <summary>
