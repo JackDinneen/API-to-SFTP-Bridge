@@ -44,7 +44,12 @@ public class ApiConnectorService : IApiConnectorService
 
                 foreach (var header in config.Headers)
                 {
-                    request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+                    var key = header.Key.Trim();
+                    var value = header.Value.Trim();
+                    if (!string.IsNullOrEmpty(key))
+                    {
+                        request.Headers.TryAddWithoutValidation(key, value);
+                    }
                 }
 
                 if (config.Body != null)
