@@ -385,7 +385,7 @@ public class ConnectionsController : ControllerBase
         return Ok(ApiResponse<bool>.Fail("API connection failed"));
     }
 
-    [HttpPost("test-connection-preview")]
+    [HttpPost("preview/test-connection")]
     [Authorize(Policy = AuthorizationPolicies.AdminOrOperator)]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<bool>>> TestConnectionPreview(
@@ -403,7 +403,7 @@ public class ConnectionsController : ControllerBase
         return Ok(ApiResponse<bool>.Fail("API connection failed. Check your base URL and credentials."));
     }
 
-    [HttpPost("fetch-sample")]
+    [HttpPost("preview/fetch-sample")]
     [Authorize(Policy = AuthorizationPolicies.AdminOrOperator)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<object>>> FetchSample(

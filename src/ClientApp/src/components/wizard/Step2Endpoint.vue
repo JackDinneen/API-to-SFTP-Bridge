@@ -49,7 +49,7 @@ async function fetchSample() {
   fetchStatus.value = 'loading'
   fetchError.value = ''
   try {
-    const result = await api.postAsync<unknown>('/connections/fetch-sample', {
+    const result = await api.postAsync<unknown>('/connections/preview/fetch-sample', {
       baseUrl: wizard.wizardData.apiConfig.baseUrl,
       endpointPath: config.value.path,
       authType: wizard.wizardData.apiConfig.authType,

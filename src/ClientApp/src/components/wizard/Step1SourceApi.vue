@@ -56,7 +56,7 @@ async function testConnection() {
   testMessage.value = ''
   try {
     const result = await api.postAsync<boolean>(
-      '/connections/test-connection-preview',
+      '/connections/preview/test-connection',
       {
         baseUrl: config.value.baseUrl,
         authType: config.value.authType,
